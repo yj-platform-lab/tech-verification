@@ -242,7 +242,6 @@ resource "aws_iam_role_policy" "vmimport" {
 ```
 
 （IAMのユーザ権限の詳細は以下参照）
-
 [https://docs.aws.amazon.com/ja_jp/vm-import/latest/userguide/required-permissions.html](https://docs.aws.amazon.com/ja_jp/vm-import/latest/userguide/required-permissions.html)
 
 ### フェーズ2: AWS CLIでVMをAMI化
@@ -279,11 +278,11 @@ ssh -i vmimport-key <ユーザ名>@<ipアドレス>
 
 VirtualBoxを開きファイル→「仮想アプライアンスのエクスポート」を選択し、対象の仮想マシンを選択
 
-![image.png](image.png)
+![image1.png](./images/image1.png)
 
 フォーマットの設定はovaファイルとする。[完了]を選択し、ovaファイルをエクスポート。
 
-![image.png](image%201.png)
+![image2.png](./images/image2.png)
 
 指定したフォルダにovaファイルが生成されていることを確認。
 
@@ -323,9 +322,7 @@ aws ec2 describe-images --owner self
 
 ### フェーズ3: TerraformでEC2を作成
 
-フェーズ2でVM ImportによりAMIを作成したが、このAMIはAWS CLIで作成されているため、Terraformでは直接管理されていない。そのため、EC2 インスタンスをTerraformで作成する前に、
-
-対象となる AMI を特定するための情報（Name / root-device-type / virtualization-type）を確認する必要がある。
+フェーズ2でVM ImportによりAMIを作成したが、このAMIはAWS CLIで作成されているため、Terraformでは直接管理されていない。そのため、EC2 インスタンスをTerraformで作成する前に、対象となる AMI を特定するための情報（Name / root-device-type / virtualization-type）を確認する必要がある。
 
 ```bash
 #フェーズ2のコマンドで取得したImageIDを使用して以下のコマンドを実行
@@ -417,3 +414,5 @@ SSHで接続できるか検証。
 #パスワードを聞かれずにログインできること
 ssh -i vmimport-key <ユーザ名>@<ipアドレス>
 ```
+
+SSHで接続できれば完了。
