@@ -38,12 +38,11 @@ Terraformで以下のリソースをまとめて構築する。
 
 それは後述する aws ec2 import-image によるAMI変換処理が、CLIを実行したユーザではなくAWSの VM Import/Exportサービスによって実行されるためである。
 
-そのため、S3 上の OVA にアクセスする権限をAWSサービスへ委譲する必要があり、VM Import 用の IAMロールを事前に作成する必要がある。
-では以下のmain.tfファイルを使用し、VM Import/Export に必要なリソースを作成する。
+そのため、S3 上の OVA にアクセスする権限をAWSサービスへ委譲する必要があり、VM Import 用の IAMロールを事前に作成する必要がある。では以下のmain.tfファイルを使用し、VM Import/Export に必要なリソースを作成する。
 
 main.tf
 
-```json
+```hcl
 # ---------------------------------------                                                                                  
 # Terraform configuration                                                                                                  
 # ---------------------------------------                                                                                  
@@ -335,7 +334,7 @@ aws ec2 describe-images --image-ids <フェーズ2のコマンドで取得した
 
 上記でnameとroot-device-typeとvirtualization-typeを取得後、main.tfに以下を追加。
 
-```json
+```hcl
 # ---------------------------------------
 # AMI Data Source
 # ---------------------------------------
@@ -362,7 +361,7 @@ data "aws_ami" "imported" {
 
 生成されたpubファイルをkaypairとしてmain.tfに追加。
 
-```json
+```hcl
 # ---------------------------------------
 # Key Pair
 # ---------------------------------------
@@ -380,7 +379,7 @@ resource "aws_key_pair" "ssh" {
 
 [AMI Data Source]の情報をもとに、EC2を作成。
 
-```json
+```hcl
 # ---------------------------------------
 # EC2 Instance
 # ---------------------------------------
