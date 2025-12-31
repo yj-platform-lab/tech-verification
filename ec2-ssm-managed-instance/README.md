@@ -2,7 +2,7 @@
 
 ## 検証の背景
 RHEL7を搭載した既存EC2に対し、AWS Systems Manager Automationを利用した検証を行う必要があった。
-しかし、SSM Agentは導入済みであるにもかかわらず、Systems ManagerからはManaged Instance として認識されておらず、Automation Runbookの実行に失敗する状態であった。
+しかし、既存EC2へはSSM Agentを導入済みであるにもかかわらず、Systems ManagerからはManaged Instanceとして認識されておらず、Automation Runbookの実行に失敗する状態であった。
 本検証では、Terraformを用いてIAM設定を整理し、EC2をSystems ManagerのManaged Instanceとして認識させるまでの手順を確認する。
 
 ## 前提条件
@@ -14,10 +14,15 @@ RHEL7を搭載した既存EC2に対し、AWS Systems Manager Automationを利用
 
 ## 全体の流れ
 以下の流れで検証を進める。
+
 Step1:EC2がSSMに認識されていないことを確認
+
 Step2:EC2にSSM Agentが存在することを確認
+
 Step3:EC2にIAMロールが付与されているか確認
+
 Step4:SSMへのアウトバウンド通信を確認
+
 Step5:EC2がSSMに認識されていることを確認
 
 ### Step1:SSMに認識されていないことを確認
@@ -146,17 +151,15 @@ SSM Agentは、以下のAWSマネージドエンドポイントに対してア�
 - ec2messages.<region>.amazonaws.com
 - ssmmessages.<region>.amazonaws.com
 
-参考：[https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/setup-create-vpc.html](https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/setup-create-vpc.html)
+参考１：[https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/setup-create-vpc.html](https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/setup-create-vpc.html)
 
-[https://docs.aws.amazon.com/ja_jp/prescriptive-guidance/latest/patterns/connect-to-an-amazon-ec2-instance-by-using-session-manager.html](https://docs.aws.amazon.com/ja_jp/prescriptive-guidance/latest/patterns/connect-to-an-amazon-ec2-instance-by-using-session-manager.html)
+参考２：[https://docs.aws.amazon.com/ja_jp/prescriptive-guidance/latest/patterns/connect-to-an-amazon-ec2-instance-by-using-session-manager.html](https://docs.aws.amazon.com/ja_jp/prescriptive-guidance/latest/patterns/connect-to-an-amazon-ec2-instance-by-using-session-manager.html)
 
-そのため、EC2がプライベートサブネットに配置されている場合は、上記エンドポイントに対応する VPC エンドポイントを作成する必要がある。
+EC2がプライベートサブネットに配置されている場合は、上記エンドポイントに対応する VPC エンドポイントを作成する必要がある。
 
-一方、今回のEC2はInternet Gatewayに接続されたVPC上に配置されているため、VPCエンドポイントの作成は不要である。
+一方で、今回のEC2はInternet Gatewayに接続されたVPC上に配置されているため、VPCエンドポイントの作成は不要である。
 
-ただし、**EC2 が0.0.0.0/0宛にアウトバウンド通信できること**は前提条件となる。
-
-そのため、当該インスタンスにアタッチされているセキュリティグループのアウトバウンドルールを以下のコマンドで確認する。
+ただし、**EC2 が0.0.0.0/0宛にアウトバウンド通信できること**は前提条件となる。そのため、当該インスタンスにアタッチされているセキュリティグループのアウトバウンドルールを以下のコマンドで確認する。
 
 ```bash
 aws ec2 describe-security-groups \
