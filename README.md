@@ -1,6 +1,7 @@
-# tech-verification
+# AWS / EC2 運用・障害対応 検証ログ
 
-実際に手を動かして検証した技術検証記録をまとめたリポジトリ。
+本リポジトリは、AWS EC2 を中心に  
+**実際に手を動かして検証した運用・障害対応の記録**をまとめたものです。
 
 ## 検証テーマ
 - [VirtualBox 仮想マシンを AWS EC2 に移行する](./vbox-to-ec2-migration/README.md)
