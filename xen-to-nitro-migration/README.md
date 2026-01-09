@@ -1,4 +1,4 @@
-# Xen世代EC2からNitro世代EC2 への移行する-RHEL7.2
+# Xen世代EC2からNitro世代EC2 へ移行-RHEL7.2
 
 ## 概要
 
