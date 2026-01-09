@@ -3,7 +3,7 @@
 ## 概要
 
 - **目的**: VirtualBox 上の RHEL7.2 VM を **VM Import/Export** で AMI 化し、EC2 で起動・SSH 接続まで再現する。
-- **結果**: OVA → S3 → `import-image` で AMI 作成し、Terraform で EC2 を起動できた。
+- **結果**: OVA → S3 → `import-image` で AMI 作成しTerraform で EC2 を起動できた。
 - **要点**: 事前に **S3/IAM(VM Import 用)/VPC 基盤** を用意し、AMI は Terraform 管理外なので **data source で特定して参照**する。
 
 ## この記事で分かること
@@ -11,7 +11,6 @@
 - VirtualBox VM（RHEL7.2）を **OVA にエクスポート → S3 → AMI 化**する流れ
 - VM Import/Export に必要な **S3 / IAM ロール**の位置づけ
 - Terraform で **基盤→EC2 起動**までを分けて再現する手順
-- Terraform から **CLI で作った AMI を data source で拾う**方法
 
 ## 検証の背景
 
@@ -47,7 +46,7 @@ Terraformで以下のリソースをまとめて構築する。
     - なぜ IAM ロールを作成する必要があるのか。
     それは後述する aws ec2 import-image によるAMI変換処理が、CLIを実行したユーザではなくAWSの VM Import/Exportサービスによって実行されるためである。そのため、S3 上の OVA にアクセスする権限をAWSサービスへ委譲する必要があり、VM Import 用の IAMロールを事前に作成する必要がある。
 
-基盤構築に使用したTFファイルは以下。参考まで
+基盤構築に使用したTerraform設定ファイルは以下。
 
 ```hcl
 # ---------------------------------------                                                                                  
@@ -254,19 +253,21 @@ resource "aws_iam_role_policy" "vmimport" {
 
 ### Step 2. SSH 鍵を作り、VM へ登録して「ローカル → VM」に入れることを確認
 
-EC2に移行した後も同じ鍵で入れるように、EC2にSSH接続する際の「接続元」となるローカルPC上で、あらかじめSSH鍵を作成しておく必要がある。まずは以下のコマンドでSSH鍵を生成。
+EC2に移行した後も同じ鍵でログインできるように、ローカル環境でSSH鍵を作成し、VirtualBox VMに取り込んで接続確認をする。
+
+以下のコマンドでSSH鍵を生成。
 
 ```bash
 #鍵生成（ローカルPC）
-ssh-keygen -t ed25519 -f vmimport-key
+ssh-keygen -t ed25519 -f <鍵の名前>
 ```
 
-上記で作成されるvmimport-key.pubキーをVirtualBox上の仮想マシンに移行。
+上記で作成される公開鍵をVirtualBox上の仮想マシンに登録。
 
 ```bash
 #公開鍵をVM側へ登録（VM内で実行）
 mkdir -p ~/.ssh
-cat vmimport-key.pub >> /home/<ユーザ名>/.ssh/authorized_keys
+cat <公開鍵> >> /home/<ユーザ名>/.ssh/authorized_keys
 chown -R <ユーザ名>:<ユーザ名> /home/<ユーザ名>/.ssh
 chmod 700 /home/<ユーザ名>/.ssh
 chmod 600 /home/<ユーザ名>/.ssh/authorized_keys
@@ -276,13 +277,12 @@ chmod 600 /home/<ユーザ名>/.ssh/authorized_keys
 
 ```bash
 #パスワードを聞かれずにログインできること
-ssh -i vmimport-key <ユーザ名>@<ipアドレス>
+ssh -i <秘密鍵> <ユーザ名>@<ipアドレス>
 ```
 
-上記を確認できたら、VirtualBox上の仮想マシンをシャットダウンする。その後ovaファイルをエクスポートし、それをフェーズ1で作成したs3に取り込む。
-
 ### Step 3. VirtualBox VM を停止し、OVA をエクスポートする
-VM を **OVA ファイル**として書き出すために、VirtualBoxを開きファイル→「仮想アプライアンスのエクスポート」を選択し、対象の仮想マシンを選択
+
+Step2が完了したら、VirtualBox上の仮想マシンをシャットダウンする。その後「ファイル」→「仮想アプライアンスのエクスポート」を選択し、対象の仮想マシンを選択
 
 ![image1.png](./images/image1.png)
 
@@ -290,10 +290,11 @@ VM を **OVA ファイル**として書き出すために、VirtualBoxを開き�
 
 ![image2.png](./images/image2.png)
 
-指定したフォルダにovaファイルが生成されていることを確認。
+指定したフォルダにovaファイルが生成されていることを確認する。
 
 ### Step 4. OVA を S3 にアップロードする
-`import-image` の入力となる OVA を **S3 に配置**する。
+
+Step1で作成したS3バケット に Step3で取得した`rhel72.ova` をインポートする。
 
 ```bash
 #S3バケット一覧を表示
@@ -307,7 +308,8 @@ aws s3 ls <フェーズ1で作成したs3>
 ```
 
 ### Step 5. `import-image` で AMI を作る → 完了まで状態確認 → ImageId を把握
-S3 の OVA を **AMI に変換**する。
+
+Step4でS3に取り込んだOVA を **AMI に変換**する。
 
 ```bash
 #S3に置いたovaをAMIに変換
@@ -316,7 +318,7 @@ aws ec2 import-image \
     --disk-containers '[{
     "Format": "OVA",
     "UserBucket": {
-      "S3Bucket": "<s3バケット名>",
+      "S3Bucket": "<Step1で作成したs3バケット名>",
       "S3Key": "rhel72.ova"
     }
   }]' 
@@ -365,6 +367,7 @@ data "aws_ami" "imported" {
 ```
 
 ### Step 7. KeyPair と EC2 を Terraform で作成し、起動確認する
+
 AMI を使って **EC2 を起動**し、鍵で SSH 接続できる状態にする。
 
 ```hcl
@@ -373,7 +376,7 @@ AMI を使って **EC2 を起動**し、鍵で SSH 接続できる状態にす�
 # ---------------------------------------
 resource "aws_key_pair" "ssh" {
   key_name   = "${var.project}-${var.environment}-keypair"
-  public_key = file("./vmimport-key.pub")
+  public_key = file("./<公開鍵>")
 
   tags = {
     Name    = "${var.project}-${var.environment}-keypair"
@@ -423,5 +426,5 @@ SSHで接続できるか検証。
 
 ```bash
 #パスワードを聞かれずにログインできること
-ssh -i vmimport-key <ユーザ名>@<ipアドレス>
+ssh -i <公開鍵> <ユーザ名>@<ipアドレス>
 ```
