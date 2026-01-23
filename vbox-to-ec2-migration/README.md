@@ -1,23 +1,27 @@
 # VirtualBox仮想マシンをAWS EC2に移行する
 
-## 概要
-
-- **目的**: VirtualBox 上の RHEL7.2 VM を **VM Import/Export** で AMI 化し、EC2 で起動・SSH 接続まで再現する。
-- **結果**: OVA → S3 → `import-image` で AMI 作成しTerraform で EC2 を起動できた。
-- **要点**: 事前に **S3/IAM(VM Import 用)/VPC 基盤** を用意し、AMI は Terraform 管理外なので **data source で特定して参照**する。
-
-## この記事で分かること
-
-- VirtualBox VM（RHEL7.2）を **OVA にエクスポート → S3 → AMI 化**する流れ
-- VM Import/Export に必要な **S3 / IAM ロール**の位置づけ
-- Terraform で **基盤→EC2 起動**までを分けて再現する手順
-
 ## 検証の背景
+業務において、Amazon EC2 上で稼働するミドルウェアサーバを運用しており、OS には RHEL7 を使用している。ランニングコスト削減の観点から、AWS Compute Optimizer の提案をもとに EC2 のインスタンスタイプ変更を検討する必要があった。
 
-2025/12 時点で RHEL7 はサポート終了しているが、既存システムでは短期間で OS アップデートが難しいケースがある。そこで、RHEL7 環境を維持したまま VirtualBox 上の仮想マシンを Amazon EC2 に移行する手順を検証する。
+一方で、RHEL7 はすでにサポート終了しており、AWS 上では新規に RHEL7 の AMI を作成することができない。また、既存システムの特性上、短期間での OS アップグレードは難しい状況であった。そのため、既存環境を維持したままインスタンスタイプ変更や移行検証を行うには、RHEL7 環境を別の方法で用意する必要があった。
 
-本検証では AWS の VM Import/Export を使い、VirtualBox の VM を AMI 化して EC2 上で起動・接続できる状態を再現するまでを確認する。
+そこで本検証では、ローカルの VirtualBox 上に RHEL7 環境を構築し、AWS の VM Import/Export を用いて AMI 化することで、
+RHEL7 環境を EC2 上に再現できるかを検証する。
 
+本検証は、VirtualBox の仮想マシンを AMI 化し、EC2 上で起動および SSH 接続できる状態までを再現することを目的とする。
+<br>
+<br>
+## 結論
+- VirtualBox 上の RHEL7 仮想マシンは、AWS VM Import/Export を利用することで  AMI 化し、EC2 上で起動および SSH 接続まで再現可能。
+- Import した AMI は Terraform 管理外となるため、Terraform では data source として参照する運用が現実的と思われる。
+<br>
+<br>
+## この記事で分かること
+- VirtualBox VM（RHEL7.2）を OVA にエクスポート → S3 → AMI 化する流れ
+- VM Import/Export に必要な S3 / IAM ロールの位置づけ
+- Terraform で 基盤→EC2 起動までを分けて再現する手順
+<br>
+<br>
 ## 前提条件
 
 - ローカル環境: Terraform が実行できること（基本操作が分かる）
