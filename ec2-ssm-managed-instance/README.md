@@ -373,4 +373,4 @@ aws ssm describe-instance-information
 }                                                                  
 ```
 
-以上で完了。Managed Instanceとして認識される。
+以上で完了。Managed Instanceとして認識されていることが確認できる。
