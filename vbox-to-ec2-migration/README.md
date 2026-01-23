@@ -253,7 +253,7 @@ resource "aws_iam_role_policy" "vmimport" {
 [https://docs.aws.amazon.com/ja_jp/vm-import/latest/userguide/required-permissions.html](https://docs.aws.amazon.com/ja_jp/vm-import/latest/userguide/required-permissions.html)
 
 
-### Step 2. SSH 鍵を作り、VM へ登録して「ローカル → VM」に入れることを確認
+### Step 2. SSH 鍵を作成しVM へ登録することで、ローカルから VM へログインできることを確認
 
 EC2に移行した後も同じ鍵でログインできるように、ローカル環境でSSH鍵を作成し、VirtualBox VMに取り込んで接続確認をする。以下のコマンドでSSH鍵を生成。
 ```bash
@@ -307,7 +307,7 @@ aws s3 ls <フェーズ1で作成したs3>
 
 ### Step 5. `import-image` で AMI を作る → 完了まで状態確認 → ImageId を把握
 
-Step4でS3に取り込んだOVA を **AMI に変換**する。
+Step4でS3に取り込んだOVA を AMI に変換する。
 ```bash
 #S3に置いたovaをAMIに変換
 aws ec2 import-image \
