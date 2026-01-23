@@ -1,23 +1,21 @@
 # EC2をSSM Managed Instanceに認識させる
 
-## 概要
+## 背景
+Amazon Linux 2023 を搭載した EC2 に対しSystems Manager Automation を用いた検証を行う中で、SSM Agent が標準インストールされているにもかかわらずManaged Instance として認識されない事象に直面した。
 
-- 目的: SSM Agent は入っているが Managed Instance として認識されない EC2 を解消する
-- 結果: IAM ロールとアウトバウンド通信設定を整えることで認識される
-- 要点: 「IAM ロール + Instance Profile + 0.0.0.0/0 の疎通」が必須
+調査の結果、IAM ロール設定など複数の前提条件が必要であることが分かったため、本検証ではそれらを Terraform で整理する。
+
+## 結論
+Managed Instance として認識させるには、SSM Agent のインストールだけではなく、AmazonSSMManagedInstanceCore を付与した IAM ロールをインスタンスプロファイル経由で EC2 に関連付け、かつ SSM エンドポイントへのアウトバウンド通信が可能である必要がある。
+
+これらの前提条件を満たすことで、Systems Manager Automation Runbook を正常に実行できることを確認した。
+
 
 ## この記事で分かること
-
-- SSM Agent があっても認識されない原因
 - SSM Managed Instance に必要な IAM 構成
 - Terraform での最小構成例
 - SSM が利用するアウトバウンド通信要件
 
-## 検証の背景
-
-Amazon Linux 2023 を搭載した EC2 に対し、AWS Systems Manager Automation（Runbook）を利用した検証を行う必要があった。
-
-Amazon Linux 2023 では **SSM Agent は標準でインストール済み**であるにもかかわらず、Systems Manager 上で **Managed Instance として認識されず**、Automation Runbook の実行に失敗する状態となった。本記事では、**Amazon Linux 2023 において EC2 を SSM Managed Instance として認識させるまでの最短手順**を、Terraform を用いた IAM 設定を中心に整理する。
 
 ## 前提条件
 
@@ -33,7 +31,7 @@ Amazon Linux 2023 では **SSM Agent は標準でインストール済み**で�
 
 ### Step0:環境構築
 
-terraformで検証環境を用意する。使用したTerraform設定ファイルは以下。AMI IDは公式が提供しているID。
+terraformで検証環境を用意する。使用したTerraform設定ファイルは以下。AMI IDは公式が提供しているIDを使用。
 
 ```hcl
 # ---------------------------------------
