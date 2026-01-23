@@ -1,6 +1,6 @@
 # VirtualBox仮想マシンをAWS EC2に移行する
 
-## 検証の背景
+## 背景
 業務において、Amazon EC2 上で稼働するミドルウェアサーバを運用しており、OS には RHEL7 を使用している。ランニングコスト削減の観点から、AWS Compute Optimizer の提案をもとに EC2 のインスタンスタイプ変更を検討する必要があった。
 
 一方で、RHEL7 はすでにサポート終了しており、AWS 上では新規に RHEL7 の AMI を作成することができない。また、既存システムの特性上、短期間での OS アップグレードは難しい状況であった。そのため、既存環境を維持したままインスタンスタイプ変更や移行検証を行うには、RHEL7 環境を別の方法で用意する必要があった。
@@ -8,19 +8,21 @@
 そこで本検証では、ローカルの VirtualBox 上に RHEL7 環境を構築し、AWS の VM Import/Export を用いて AMI 化することで、
 RHEL7 環境を EC2 上に再現できるかを検証する。
 
-本検証は、VirtualBox の仮想マシンを AMI 化し、EC2 上で起動および SSH 接続できる状態までを再現することを目的とする。
-<br>
+本検証のゴールは、VirtualBox の仮想マシンを AMI 化し、EC2 上で起動および SSH 接続できる状態までを再現することである。
+
 <br>
 ## 結論
+
 - VirtualBox 上の RHEL7 仮想マシンは、AWS VM Import/Export を利用することで  AMI 化し、EC2 上で起動および SSH 接続まで再現可能。
 - Import した AMI は Terraform 管理外となるため、Terraform では data source として参照する運用が現実的と思われる。
-<br>
+
 <br>
 ## この記事で分かること
+
 - VirtualBox VM（RHEL7.2）を OVA にエクスポート → S3 → AMI 化する流れ
 - VM Import/Export に必要な S3 / IAM ロールの位置づけ
 - Terraform で 基盤→EC2 起動までを分けて再現する手順
-<br>
+
 <br>
 ## 前提条件
 
@@ -252,14 +254,12 @@ resource "aws_iam_role_policy" "vmimport" {
 ```
 
 （IAMのユーザ権限の詳細は以下参照）
-
 [https://docs.aws.amazon.com/ja_jp/vm-import/latest/userguide/required-permissions.html](https://docs.aws.amazon.com/ja_jp/vm-import/latest/userguide/required-permissions.html)
+
 
 ### Step 2. SSH 鍵を作り、VM へ登録して「ローカル → VM」に入れることを確認
 
-EC2に移行した後も同じ鍵でログインできるように、ローカル環境でSSH鍵を作成し、VirtualBox VMに取り込んで接続確認をする。
-
-以下のコマンドでSSH鍵を生成。
+EC2に移行した後も同じ鍵でログインできるように、ローカル環境でSSH鍵を作成し、VirtualBox VMに取り込んで接続確認をする。以下のコマンドでSSH鍵を生成。
 
 ```bash
 #鍵生成（ローカルPC）
@@ -284,17 +284,17 @@ chmod 600 /home/<ユーザ名>/.ssh/authorized_keys
 ssh -i <秘密鍵> <ユーザ名>@<ipアドレス>
 ```
 
+
 ### Step 3. VirtualBox VM を停止し、OVA をエクスポートする
 
 Step2が完了したら、VirtualBox上の仮想マシンをシャットダウンする。その後「ファイル」→「仮想アプライアンスのエクスポート」を選択し、対象の仮想マシンを選択
-
 ![image1.png](./images/image1.png)
 
 フォーマットの設定はovaファイルとする。[完了]を選択し、ovaファイルをエクスポート。
-
 ![image2.png](./images/image2.png)
 
 指定したフォルダにovaファイルが生成されていることを確認する。
+
 
 ### Step 4. OVA を S3 にアップロードする
 
