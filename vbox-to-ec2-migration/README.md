@@ -45,7 +45,7 @@ Terraformで以下のリソースをまとめて構築する。
 - Route Table + Association
 - Security Group
 - IAMロール（VM Import用）
-    - なぜ IAM ロールを作成する必要があるのか。
+    - **なぜ IAM ロールを作成する必要があるのか。**
     それは後述する aws ec2 import-image によるAMI変換処理が、CLIを実行したユーザではなくAWSの VM Import/Exportサービスによって実行されるためである。そのため、S3 上の OVA にアクセスする権限をAWSサービスへ委譲する必要があり、VM Import 用の IAMロールを事前に作成する必要がある。
 
 
