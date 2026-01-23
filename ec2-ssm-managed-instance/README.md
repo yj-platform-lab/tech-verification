@@ -20,7 +20,6 @@ Managed Instance として認識させるには、SSM Agent のインストー�
 ## 前提条件
 
 - EC2 が Amazon Linux 2023 で起動していること
-- Kernel: 6.x（AL2023 標準）
 - EC2 へ SSH ログイン可能であること
 - AWS CLI を実行できる環境
 - Terraform の基本操作が可能であること
@@ -182,7 +181,7 @@ resource "aws_instance" "ssmec2" {
 
 ### Step1:SSMに認識されていないことを確認
 
-まずは以下のコマンドで当該インスタンスの情報が表示されないことを確認する。もしインスタンスの情報が表示されるようであれば今回の作業は不要
+まずは以下のコマンドで当該インスタンスの情報が表示されないことを確認する。もしインスタンスの情報が表示されるようであれば今回の作業は不要である。
 
 ```bash
 ##SSM登録状況確認（実行結果にインスタンスの情報が表示されないことを確認する）
@@ -191,8 +190,7 @@ aws ssm describe-instance-information
 
 ### Step2:EC2にSSM Agentが存在することを確認
 
-対象のEC2にSSMがインストールされているか確認する。コマンドの詳細は以下参照
-
+対象のEC2にSSMがインストールされているか確認する。コマンドの詳細は以下を参照。
 参考：[https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/agent-install-rhel-7.html](https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/agent-install-rhel-7.html)
 
 ```bash
@@ -209,7 +207,6 @@ sudo yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/late
 ### Step3:EC2にIAMロールが付与されているか確認
 
 以下のコマンドを実行し、対象の EC2 インスタンスに AmazonSSMManagedInstanceCore ポリシーを持つ IAM ロールが付与されているかを確認する。
-
 参考:[https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/setup-instance-permissions.html](https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/setup-instance-permissions.html)
 
 ```bash
@@ -325,7 +322,7 @@ aws ec2 describe-security-groups \
   --query "SecurityGroups[].IpPermissionsEgress"
 ```
 
-この結果に0.0.0.0/0が含まれていれば問題ない。しかしTerraformで設定を行った場合、これらのアウトバンドルールは別途設定する必要がある。そのためstep0で記載した# Security Groupセクションに以下の内容を追記する
+この結果に0.0.0.0/0が含まれていれば問題ない。しかしTerraformで設定を行った場合、これらのアウトバンドルールは別途設定する必要がある。そのためstep0で記載した# Security Groupセクションに以下の内容を追記する。
 
 ```hcl
 resource "aws_security_group_rule" "allow_all_egress" {
@@ -376,4 +373,4 @@ aws ssm describe-instance-information
 }                                                                  
 ```
 
-以上で完了
+以上で完了。Managed Instanceとして認識される。
