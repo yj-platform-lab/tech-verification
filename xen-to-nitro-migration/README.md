@@ -1,20 +1,23 @@
 # Xen世代EC2からNitro世代EC2 へ移行-RHEL7.2
 
-## 概要
+## 背景
+業務において、Amazon EC2 上で稼働する RHEL 7.2 環境のミドルウェアサーバを運用している。本環境は Xen 世代のインスタンスタイプ上で稼働しており、AWS Compute Optimizer によるコスト最適化の提案を受け、インスタンスタイプの見直しが必要となった。
 
-- 目的：Xen世代のRHEL7.2をSAWでNitroへ移行できるか検証
-- 結果：要件チェックをALL PASSEDに整えた上でSAWが成功
-- 要点：SAWはENAを自動導入しないため、ena.koを用意してinitramfsに含める必要があった
+一方で、RHEL 7 はすでにサポートが終了しており、新規 AMI の作成や短期間での OS アップグレードは困難である。そのため、既存 OS を維持したまま、Xen 世代から Nitro 世代への移行を検証する必要があった。
+
+Xen から Nitro への移行は単純なインスタンスタイプ変更ではなく、ENA や NVMe、initramfs など OS 側の要件を満たさない場合、起動やネットワーク疎通に失敗しやすい。そこで本検証では、AWS Support Automation Workflow（SAW）の Runbook を用いて事前要件の確認と対応手順を整理し、RHEL 7.2 環境における Nitro 世代への移行可否を検証する。
+
+
+## 結論
+
+- AWSSupport-MigrateXenToNitroLinux は、ENA ドライバを自動でインストールしない
+- そのため、事前に AWSSupport-CheckXenToNitroMigrationRequirements を実行し、すべてのチェック項目が PASS となる状態を作ることが重要である
+- 上記要件を満たした状態で AWSSupport-MigrateXenToNitroLinux を実行することで、RHEL 7.2 環境においても Xen 世代から Nitro 世代への移行が正常に完了することを確認した
 
 ## この記事で分かること
 
 - ENAを導入してRHEL7.2をSAWでNitroへ移行する方法
 
-## 背景
-
-RHEL 7.2 の EC2（Xen 世代）を、コスト最適化・保守性の観点から Nitro 世代へ移行したい。
-
-ただし Xen → Nitro は単純なインスタンスタイプ変更ではなく、ENA/NVMe や initramfs、NIC 名など OS 側の要件を満たさないと起動・疎通で失敗しやすいため、SAW の Runbook を使って要件確認と対応手順を整理した。
 
 ## 前提条件
 
@@ -26,22 +29,20 @@ RHEL 7.2 の EC2（Xen 世代）を、コスト最適化・保守性の観点か
 SAW（AWS Support Automation Workflows）は、AWS Systems Manager Automation をベースにした AWS 提供の Runbook 群で、一般的な運用作業（調査・修復・移行など）を手順化して自動実行できる。
 
 本検証では、まず要件チェック Runbook（`AWSSupport-CheckXenToNitroMigrationRequirements`）で OS 側の不足（ENA/NVMe/GRUB 等）を洗い出し、対応後に移行 Runbook（`AWSSupport-MigrateXenToNitroLinux`）を実行した。なお SAW はあくまで “手順実行” であり、OS 内のドライバ導入（例：ENA）まで自動で行わないため、事前に要件を満たしておくことが重要である。
-
 参照：[https://pages.awscloud.com/rs/112-TZM-766/images/AWS-Black-Belt_2024_AWS-SAW-EC2-Nitro-Migration_0215_v1.pdf](https://pages.awscloud.com/rs/112-TZM-766/images/AWS-Black-Belt_2024_AWS-SAW-EC2-Nitro-Migration_0215_v1.pdf)
 
-上記以外の方法として「nitro_check_script.sh スクリプトを実行し、前提条件を確認する」という手法もあるが、このスクリプトは2025/12現在、最終更新が約5年前でありメンテナンス状況が不明であるため本ランブックでのみ検証を行う。
 
+上記以外の方法として「nitro_check_script.sh スクリプトを実行し、前提条件を確認する」という手法もあるが、このスクリプトは2025/12現在、最終更新が約5年前でありメンテナンス状況が不明であるため本ランブックでのみ検証を行う。
 参考：[https://repost.aws/ja/knowledge-center/boot-error-linux-nitro-instance](https://repost.aws/ja/knowledge-center/boot-error-linux-nitro-instance)
 
 OSの要件は以下から確認すること
-
 [https://docs.aws.amazon.com/systems-manager-automation-runbooks/latest/userguide/automation-awssupport-migrate-xen-to-nitro.html](https://docs.aws.amazon.com/systems-manager-automation-runbooks/latest/userguide/automation-awssupport-migrate-xen-to-nitro.html)
 
 ## 実行前の準備（Runbook 実行に必要なもの）
 
 - SAW（SSM Automation）を実行できる IAM 権限を用意する（EC2 操作・SSM Automation 実行など）。
     
-    ※環境がなければ別記事「VirtualBox仮想マシンをAWS EC2に移行する」を参照し、EC2を作成する。この記事の内容にそって環境を構築した場合追加でSSMと通信するためのセキュリティグループやロールの設定が必要になるためTerraform設定ファイルに以下を追記する。
+    ※環境がなければ別記事「VirtualBox仮想マシンをAWS EC2に移行する」を参照し、EC2を作成する。この記事の内容に沿って環境を構築した場合追加でSSMと通信するためのセキュリティグループやロールの設定が必要になるためTerraform設定ファイルに以下を追記する。
     
     ```hcl
     #SSMと通信するにはSGがエンドポイントと接続できる必要があるため、以下の穴あけをする
@@ -353,7 +354,7 @@ lsinitrd /boot/initramfs-3.10.0-327.el7.x86_64.img | grep ena
 
 ## Step 4. `biosdevname=0` を追加して NIC 名の揺れを抑える（再起動あり）
 
-要件チェックでは `net.ifnames=0` が設定済みでも、追加チェックとして `biosdevname=0` が未設定の場合に FAILED になることがある。NIC 名の揺れによる疎通トラブルを避ける意味でも、本検証では `biosdevname=0` を追加して **ALL PASSED** を目指す。
+要件チェックでは `net.ifnames=0` が設定済みでも、追加チェックとして `biosdevname=0` が未設定の場合に FAILED になることがある。NIC 名の揺れによる疎通トラブルを避ける意味でも、本検証では `biosdevname=0` を追加して ALL PASSED を目指す。
 
 ```bash
 # /etc/default/grubの中身確認
@@ -372,7 +373,7 @@ cat /proc/cmdline | grep biosdevname
 
 ## Step 5. ENA attribute（enaSupport）を有効化する（AWS 側設定）
 
-要件チェックの **ENA attribute FAILED** を解消するため、対象インスタンスの `enaSupport` を有効化する。
+要件チェックの ENA attribute FAILED を解消するため、対象インスタンスの `enaSupport` を有効化する。
 
 ```bash
 # インスタンスを停止する
@@ -396,7 +397,7 @@ aws ec2 describe-instances \
 
 ## Step 6. 要件チェック Runbook を再実行し、ALL PASSED を確認する
 
-Step 3〜5（ENA driver / biosdevname=0 / ENA attribute）の対応後に、再度 `AWSSupport-CheckXenToNitroMigrationRequirements` を実行して **FAILED が解消されたか**を確認する。下記のとおり、FAILDの結果は無くなった。
+Step 3〜5（ENA driver / biosdevname=0 / ENA attribute）の対応後に、再度 `AWSSupport-CheckXenToNitroMigrationRequirements` を実行して FAILED が解消されたかを確認する。下記のとおり、FAILDの結果は無くなった。
 
 ```
 Total Number of Tests: 6
@@ -445,7 +446,7 @@ https://aws.amazon.com/premiumsupport/knowledge-center/boot-error-linux-nitro-in
 
 ## Step 7：`AWSSupport-MigrateXenToNitroLinux` を実行する（SNS Topic 入力あり）
 
-要件チェックが **ALL PASSED** になったら、移行 Runbook を実行して Xen → Nitro の移行（クローン作成＋Nitro 起動）を行う。
+要件チェックが ALL PASSED になったら、移行 Runbook を実行して Xen → Nitro の移行（クローン作成＋Nitro 起動）を行う。
 
 ### 入力パラメータ
 
@@ -491,6 +492,3 @@ Clone&MigrateかFullMigrationのどちらかを選択。
 - `ena.ko` を導入し **depmod → dracut（ENA強制）→ lsinitrd で確認**、さらに `enaSupport` 有効化と `biosdevname=0` 追加を行い、要件チェックを **ALL PASSED** にできた。
 - その状態で `AWSSupport-MigrateXenToNitroLinux` を実行し、移行を進められるところまで到達した。
 
-## 学び
-
-- `AWSSupport-MigrateXenToNitroLinux` は **ENA を自動インストールしない**。
