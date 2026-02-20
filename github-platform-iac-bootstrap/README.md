@@ -63,11 +63,11 @@ JunnosukeYufu（個人アカウント）
 
 次に、Terraform から GitHub API を操作するための認証情報として、Personal Access Token（PAT）を作成する。
 
-① GitHub → 右上アイコン → Settings
-② Developer settings
-③ Personal access tokens
-④ Tokens (classic)　※Fine-grained ではなく classic
-⑤ Generate new token (classic)
+① GitHub → 右上アイコン → Settings  
+② Developer settings  
+③ Personal access tokens  
+④ Tokens (classic)　※Fine-grained ではなく classic  
+⑤ Generate new token (classic)  
 
 ※トークンの設定値
 有効期限：30日
