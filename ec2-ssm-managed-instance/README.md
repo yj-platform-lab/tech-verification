@@ -1,8 +1,7 @@
 # EC2をSSM Managed Instanceに認識させる
 
 ## 背景
-Amazon Linux 2023 を搭載した EC2 に対しSystems Manager Automation を用いた検証を行う中で、SSM Agent が標準インストールされているにもかかわらずManaged Instance として認識されない事象に直面した。
-
+Amazon Linux 2023 を搭載した EC2 に対しSystems Manager Automation を用いた検証を行う中で、SSM Agent が標準インストールされているにもかかわらずManaged Instance として認識されない事象に直面した。  
 調査の結果、IAM ロール設定など複数の前提条件が必要であることが分かったため、本検証ではそれらを Terraform で整理する。
 
 ## 結論
@@ -30,7 +29,8 @@ Managed Instance として認識させるには、SSM Agent のインストー�
 
 ### Step0:環境構築
 
-terraformで検証環境を用意する。使用したTerraform設定ファイルは以下。AMI IDは公式が提供しているIDを使用。
+terraformで検証環境を用意する。使用したTerraform設定ファイルは以下を参照。  
+AMI IDは公式が提供しているIDを使用している。
 
 ```hcl
 # ---------------------------------------
@@ -190,7 +190,7 @@ aws ssm describe-instance-information
 
 ### Step2:EC2にSSM Agentが存在することを確認
 
-対象のEC2にSSMがインストールされているか確認する。コマンドの詳細は以下を参照。
+対象のEC2にSSMがインストールされているか確認する。コマンドの詳細は以下を参照。  
 参考：[https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/agent-install-rhel-7.html](https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/agent-install-rhel-7.html)
 
 ```bash
@@ -206,7 +206,7 @@ sudo yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/late
 
 ### Step3:EC2にIAMロールが付与されているか確認
 
-以下のコマンドを実行し、対象の EC2 インスタンスに AmazonSSMManagedInstanceCore ポリシーを持つ IAM ロールが付与されているかを確認する。
+以下のコマンドを実行し、対象の EC2 インスタンスに AmazonSSMManagedInstanceCore ポリシーを持つ IAM ロールが付与されているかを確認する。  
 参考:[https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/setup-instance-permissions.html](https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/setup-instance-permissions.html)
 
 ```bash
@@ -262,8 +262,7 @@ resource "aws_iam_instance_profile" "ssm_ec2_profile" {
 
 ```
 
-インスタンスプロファイルを作成したら、EC2 リソース側にもその設定を追記する必要がある。
-
+インスタンスプロファイル作成後、EC2 リソース側にもその設定を追記する必要がある。  
 以下のiam_instance_profile行が追記箇所である。
 
 ```hcl
@@ -304,17 +303,13 @@ SSM Agentは、以下のAWSマネージドエンドポイントに対してア�
 - ec2messages.<region>.amazonaws.com
 - ssmmessages.<region>.amazonaws.com
 
-参考：[https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/setup-create-vpc.html](https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/setup-create-vpc.html)
-
+参考  
+[https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/setup-create-vpc.html](https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/setup-create-vpc.html)  
 [https://docs.aws.amazon.com/ja_jp/prescriptive-guidance/latest/patterns/connect-to-an-amazon-ec2-instance-by-using-session-manager.html](https://docs.aws.amazon.com/ja_jp/prescriptive-guidance/latest/patterns/connect-to-an-amazon-ec2-instance-by-using-session-manager.html)
 
-そのため、EC2がプライベートサブネットに配置されている場合は、上記エンドポイントに対応する VPC エンドポイントを作成する必要がある。
-
-一方、今回のEC2はInternet Gatewayに接続されたVPC上に配置されているため、VPCエンドポイントの作成は不要である。
-
-ただし、**EC2 が0.0.0.0/0宛にアウトバウンド通信できること**は前提条件となる。
-
-そのため、当該インスタンスにアタッチされているセキュリティグループのアウトバウンドルールを以下のコマンドで確認する。
+そのため、EC2がプライベートサブネットに配置されている場合は、上記エンドポイントに対応する VPC エンドポイントを作成する必要がある。  
+一方、今回のEC2はInternet Gatewayに接続されたVPC上に配置されているため、VPCエンドポイントの作成は不要である。  
+ただし、**EC2 が0.0.0.0/0宛にアウトバウンド通信できること**は前提条件となる。そのため、当該インスタンスにアタッチされているセキュリティグループのアウトバウンドルールを以下のコマンドで確認する。
 
 ```bash
 aws ec2 describe-security-groups \
