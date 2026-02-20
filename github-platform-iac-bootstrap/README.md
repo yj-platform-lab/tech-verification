@@ -70,7 +70,9 @@ JunnosukeYufu（個人アカウント）
 5. Generate new token (classic)  
 
 ※トークンの設定値
-有効期限：30日<br>
+
+有効期限：30日
+
 スコープ選択： repo（リポジトリ作成・管理用）、admin:org（Organization配下を管理するため）、workflow（Actionsを扱うため（将来用））を許可
 
 ![image1.png](./images/image1.png)
@@ -79,17 +81,17 @@ JunnosukeYufu（個人アカウント）
 
 次に移管したいリポジトリを今作ったOraganizationに移動する。
 
-① 移管したいリポジトリを開く
-② Settings → 一番下へスクロール
-③ ページ最下部の Danger Zone - Transfer ownership において「Transfer」ボタンを押す。
+1. 移管したいリポジトリを開く
+2. Settings → 一番下へスクロール
+3. ページ最下部の Danger Zone - Transfer ownership において「Transfer」ボタンを押す。
 
 ![image2.png](./images/image2.png)
 
-④ 移管先のOrganization 名とRepository 名を入力する
+4. 移管先のOrganization 名とRepository 名を入力する
 
 ![image3.png](./images/image3.png)
 
-⑤ 数分後、リポジトリを確認して移行が成功したことを確認。
+5. 数分後、リポジトリを確認して移行が成功したことを確認。
 
 ![image4.png](./images/image4.png)
 
