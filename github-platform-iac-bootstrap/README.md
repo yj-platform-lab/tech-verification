@@ -69,9 +69,8 @@ JunnosukeYufu（個人アカウント）
 4. Tokens (classic)　※Fine-grained ではなく classic  
 5. Generate new token (classic)  
 
-※トークンの設定値
-
-有効期限：30日
+※トークンの設定値  
+有効期限：30日  
 
 スコープ選択： repo（リポジトリ作成・管理用）、admin:org（Organization配下を管理するため）、workflow（Actionsを扱うため（将来用））を許可
 
