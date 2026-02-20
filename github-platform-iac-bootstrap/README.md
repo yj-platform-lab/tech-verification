@@ -4,7 +4,7 @@
 
 これまで個人アカウント配下で複数のリポジトリ（tech-verification、work、dotfiles など）を管理してきた。
 
-Terraform を用いた Infrastructure as Code の検証を進める中で、GitHub の Repository や権限設定をコードで管理するという事例を目にした。これをきっかけに、GitHub もまた一つの「基盤」として捉え、IaC の考え方を適用できるのではないかと考えた。
+Terraform を用いた Infrastructure as Code の検証を進める中で、GitHub の Repository や権限設定をコードで管理するという事例を目にした。これをきっかけに、GitHub もまた一つの基盤として捉え、IaC の考え方を適用できるのではないかと考えた。
 
 GitHub を手動で管理するのではなくコードとして定義できれば、構成の再現性や一貫性を担保できる。特に企業利用を想定した場合、GitHub は個人単位ではなく Organization 単位で管理されることが一般的であり、リポジトリの所有権や権限設計といった管理構造を明確に定義する必要がある。
 
@@ -64,19 +64,13 @@ JunnosukeYufu（個人アカウント）
 次に、Terraform から GitHub API を操作するための認証情報として、Personal Access Token（PAT）を作成する。
 
 ① GitHub → 右上アイコン → Settings
-
 ② Developer settings
-
 ③ Personal access tokens
-
 ④ Tokens (classic)　※Fine-grained ではなく classic
-
 ⑤ Generate new token (classic)
 
 ※トークンの設定値
-
 有効期限：30日
-
 スコープ選択： repo（リポジトリ作成・管理用）、admin:org（Organization配下を管理するため）、workflow（Actionsを扱うため（将来用））を許可
 
 ![image1.png](./images/image1.png)
@@ -86,9 +80,7 @@ JunnosukeYufu（個人アカウント）
 次に移管したいリポジトリを今作ったOraganizationに移動する。
 
 ① 移管したいリポジトリを開く
-
 ② Settings → 一番下へスクロール
-
 ③ ページ最下部の Danger Zone - Transfer ownership において「Transfer」ボタンを押す。
 
 ![image2.png](./images/image2.png)
@@ -153,7 +145,7 @@ provider "github" {
 
 variables.tf
 
-ここでは PATの値をファイル内に記載しないことがポイント である。
+ここでは **PATの値をファイル内に記載しないことがポイント** である。
 terraform apply 実行時に、手順2で作成したPATの入力を都度求められるが、トークンをコードや tfvars に保存しない運用のほうが安全である。
 
 ```hcl
@@ -164,7 +156,7 @@ variable "github_token" {
 }
 ```
 
-ファイルを作成したら、以下を実行する。
+ファイル作成後、以下を実行する。
 
 ```bash
 terraform init
@@ -228,8 +220,8 @@ resource "github_repository" "dotfiles" {
 Terraformの定義と、既存のGitHubリポジトリを紐付ける。
 
 ```bash
+# サンプルコマンド。リポジトリ名は適宜書き換えること。
 terraform import github_repository.dotfiles dotfiles
-terraform import github_repository.tech-verification tech-verification
 
 # インポートに失敗する場合は、デバッグモードで原因を確認する。
 TF_LOG=DEBUG terraform import github_repository.dotfiles yj-platform-lab/dotfiles
@@ -246,7 +238,7 @@ Terraformは以下を比較する：
 
 ---
 
-### ④ 差分の扱い方（重要）
+## 8.差分の扱い方
 
 差分が出た場合、どちらを正とするかを決める。
 
@@ -276,9 +268,8 @@ terraform apply
 
 GitHubの設定がコードに合わせて更新される。
 
----
 
-### ⑤ 目標状態
+## 9.目標
 
 最終的に
 
@@ -293,3 +284,4 @@ No changes. Your infrastructure matches theconfiguration.
 ```
 
 と表示されれば、そのリポジトリは **完全にTerraform管理下に入った状態** である。
+以上で移行は完了。
