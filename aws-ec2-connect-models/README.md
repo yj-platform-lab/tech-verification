@@ -4,7 +4,7 @@
 
 VMware 環境では、リモートコンソールを用いて OS の起動状況確認や障害対応を行うことがあるが、同じ感覚で EC2 にも「画面に直接つながる接続」があるのか疑問に思った。
 
-調査した結果、EC2 の接続方式は通常運用向け（SSH / Session Manager） と障害対応向け（シリアルコンソール） に明確に分かれており、VMware とは思想が異なることが分かった。本記事では、この違いを整理し「どれを選ぶべきか」を明確にする。
+調査した結果、EC2 の接続方式は通常運用向け（SSH / Session Manager） と障害対応向け（シリアルコンソール） に明確に分かれており、VMware とは思想が異なることが分かった。本記事では、この違いを整理しどれを選ぶべきかを明確にする。
 
 
 ## 結論
@@ -32,12 +32,7 @@ ssh -i <秘密鍵> ec2-user@<IPアドレス>
 
 ## 接続方法2: EC2 Instance Connect（鍵レス SSH）
 
-SSH を使う点は同じだが、ローカルに鍵ファイルを置かずに接続できる方式。仕組みとしては「SSH公開鍵をInstance Connect API を通じて EC2 に送信し、インスタンス側で当該公開鍵を一時的に有効化することでユーザ認証を行う」というもの。以下の特徴がある。
-
-- SSH を使う（＝通常は 22/tcp が必要）
-- 鍵管理の手間を減らしたいときに向く
-
-しかし、対応 OS が限られることや、EC2 Instance Connectパッケージが入っていることなどといった制約がある。
+SSH (22/tcp) を使う点は同じだが、ローカルに鍵ファイルを置かずに接続できる方式。仕組みとしては「SSH公開鍵をInstance Connect API を通じて EC2 に送信し、インスタンス側で当該公開鍵を一時的に有効化することでユーザ認証を行う」というもの。そのため、サーバにはEC2 Instance Connectパッケージが入っていることなどといった条件はあるが、鍵管理の手間を減らしたい場合は有効である。  
 では実際にログインしてみよう
 
 ![image2.png](./images/image2.png)
@@ -88,7 +83,7 @@ aws ec2 describe-instances \
 
 ![image4.png](./images/image4.png)
 
-接続すると以下のような画面となる。接続ユーザがssm-userになっている。
+接続すると以下のような画面となる。接続ユーザがssm-user。
 
 ![image5.png](./images/image5.png)
 
@@ -101,8 +96,7 @@ aws ec2 describe-instances \
     - [https://docs.aws.amazon.com/ja_jp/AWSEC2/latest/UserGuide/configure-access-to-serial-console.html#set-user-password](https://docs.aws.amazon.com/ja_jp/AWSEC2/latest/UserGuide/configure-access-to-serial-console.html#set-user-password)
 - パスワードでログインするユーザを用意する必要がある。サンプルでtestuserというユーザを作成
 
-その他詳細は以下参照。
-
+その他詳細は以下参照。  
 参考：[https://docs.aws.amazon.com/ja_jp/AWSEC2/latest/UserGuide/ec2-serial-console-prerequisites.html](https://docs.aws.amazon.com/ja_jp/AWSEC2/latest/UserGuide/ec2-serial-console-prerequisites.html)
 
 ```bash
