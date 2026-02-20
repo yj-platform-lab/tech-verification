@@ -71,7 +71,6 @@ JunnosukeYufu（個人アカウント）
 
 ※トークンの設定値  
 有効期限：30日  
-
 スコープ選択： repo（リポジトリ作成・管理用）、admin:org（Organization配下を管理するため）、workflow（Actionsを扱うため（将来用））を許可
 
 ![image1.png](./images/image1.png)
@@ -113,8 +112,7 @@ git remote -v
 
 ローカルにgithub-platform-iacというディレクトリを作成し、以下のtfファイルを格納する。
 
-main.tf
-
+main.tf  
 ```hcl
 resource "github_repository" "platform_iac" {
   name        = "github-platform-iac"
@@ -123,8 +121,7 @@ resource "github_repository" "platform_iac" {
 }
 ```
 
-provider.tf
-
+provider.tf  
 ```hcl
 terraform {
   # Pin Terraform CLI version to ensure reproducible behavior
@@ -144,8 +141,7 @@ provider "github" {
 }
 ```
 
-variables.tf
-
+variables.tf  
 ここでは **PATの値をファイル内に記載しないことがポイント** である。
 terraform apply 実行時に、手順2で作成したPATの入力を都度求められるが、トークンをコードや tfvars に保存しない運用のほうが安全である。
 
@@ -157,15 +153,13 @@ variable "github_token" {
 }
 ```
 
-ファイル作成後、以下を実行する。
-
+ファイル作成後、以下を実行する。  
 ```bash
 terraform init
 terraform plan
 ```
 
-問題がないことを確認したうえで、`terraform apply` を実行する。
-
+問題がないことを確認したうえで、`terraform apply` を実行する。  
 その後、GitHub上に `github-platform-iac` というリポジトリが作成されていることを確認する。
 
 ### 6. tfファイルのバージョン管理
@@ -228,16 +222,9 @@ terraform import github_repository.dotfiles dotfiles
 TF_LOG=DEBUG terraform import github_repository.dotfiles yj-platform-lab/dotfiles
 ```
 
-terraform plan で差分確認する。
-
-Terraformは以下を比較する：
-
-- `.tf` に書かれた定義（理想状態）
-- GitHub上の実際の設定（現実状態）
-
+terraform plan で差分確認する。  
 差分が出る場合、それはコードと GitHubの設定が一致していない ことを意味する。
 
----
 
 ## 8.差分の扱い方
 
@@ -247,8 +234,7 @@ Terraformは以下を比較する：
 
 GitHubの設定に合わせて `.tf` を修正する。
 
-例：
-
+例：  
 ```hcl
 has_issues   = true
 has_wiki     = true
@@ -272,17 +258,10 @@ GitHubの設定がコードに合わせて更新される。
 
 ## 9.目標
 
-最終的に
-
-```bash
-terraform plan
-```
-
-で
-
+最終的にterraform planを 実行後  
 ```
 No changes. Your infrastructure matches theconfiguration.
 ```
 
-と表示されれば、そのリポジトリは **完全にTerraform管理下に入った状態** である。
+と表示されれば、そのリポジトリは **完全にTerraform管理下に入った状態** である。  
 以上で移行は完了。
