@@ -32,8 +32,8 @@ ssh -i <秘密鍵> ec2-user@<IPアドレス>
 
 ## 接続方法2: EC2 Instance Connect（鍵レス SSH）
 
-SSH (22/tcp) を使う点は同じだが、ローカルに鍵ファイルを置かずに接続できる方式。仕組みとしては「SSH公開鍵をInstance Connect API を通じて EC2 に送信し、インスタンス側で当該公開鍵を一時的に有効化することでユーザ認証を行う」というもの。そのため、サーバにはEC2 Instance Connectパッケージが入っていることなどといった条件はあるが、鍵管理の手間を減らしたい場合は有効である。  
-では実際にログインしてみよう
+SSH (22/tcp) を使う点は同じだが、ローカルに鍵ファイルを置かずに接続できる方式。仕組みとしては「SSH公開鍵をInstance Connect API を通じて EC2 に送信し、インスタンス側で当該公開鍵を一時的に有効化することでユーザ認証を行う」というもの。そのため、サーバにはEC2 Instance Connectパッケージが入っていることなどといった条件はあるが、鍵管理の手間を減らしたい場合には有効な接続方法である。  
+では実際にログインしてみよう。
 
 ![image2.png](./images/image2.png)
 
@@ -83,20 +83,20 @@ aws ec2 describe-instances \
 
 ![image4.png](./images/image4.png)
 
-接続すると以下のような画面となる。接続ユーザがssm-user。
+接続すると以下のような画面となる。接続ユーザはssm-user。
 
 ![image5.png](./images/image5.png)
 
 ## 接続方法4:**EC2 シリアルコンソール**
 
-「SSH でも入れない」「SSM（Session Manager）でも入れない」ときに使うのがシリアルコンソール。ただし、これを使うためには以下の要件が存在する。
+SSH でもSSM（Session Manager）でもサーバにログインできないときに使用するのがシリアルコンソールである。ただし、これを使うためには以下の要件を満たす必要がある。
 
 - アカウント（リージョン）でシリアルコンソールを有効化
 - ユーザー/ロールに **EC2 Serial Console に接続するための権限**が必要。ここではAdministartorAccess権限を持ったユーザで実行のため省略
     - [https://docs.aws.amazon.com/ja_jp/AWSEC2/latest/UserGuide/configure-access-to-serial-console.html#set-user-password](https://docs.aws.amazon.com/ja_jp/AWSEC2/latest/UserGuide/configure-access-to-serial-console.html#set-user-password)
 - パスワードでログインするユーザを用意する必要がある。サンプルでtestuserというユーザを作成
 
-その他詳細は以下参照。  
+※詳細は以下参照。  
 参考：[https://docs.aws.amazon.com/ja_jp/AWSEC2/latest/UserGuide/ec2-serial-console-prerequisites.html](https://docs.aws.amazon.com/ja_jp/AWSEC2/latest/UserGuide/ec2-serial-console-prerequisites.html)
 
 ```bash
