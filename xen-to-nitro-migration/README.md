@@ -28,21 +28,21 @@ Xen から Nitro への移行は単純なインスタンスタイプ変更では
 
 SAW（AWS Support Automation Workflows）は、AWS Systems Manager Automation をベースにした AWS 提供の Runbook 群で、一般的な運用作業（調査・修復・移行など）を手順化して自動実行できる。
 
-本検証では、まず要件チェック Runbook（`AWSSupport-CheckXenToNitroMigrationRequirements`）で OS 側の不足（ENA/NVMe/GRUB 等）を洗い出し、対応後に移行 Runbook（`AWSSupport-MigrateXenToNitroLinux`）を実行した。なお SAW はあくまで “手順実行” であり、OS 内のドライバ導入（例：ENA）まで自動で行わないため、事前に要件を満たしておくことが重要である。
+本検証では、まず要件チェック Runbook（`AWSSupport-CheckXenToNitroMigrationRequirements`）で OS 側の不足（ENA/NVMe/GRUB 等）を洗い出し、対応後に移行 Runbook（`AWSSupport-MigrateXenToNitroLinux`）を実行した。なお SAW はあくまで “手順実行” であり、OS 内のドライバ導入（例：ENA）まで自動で行わないため、事前に要件を満たしておくことが重要である。  
 参照：[https://pages.awscloud.com/rs/112-TZM-766/images/AWS-Black-Belt_2024_AWS-SAW-EC2-Nitro-Migration_0215_v1.pdf](https://pages.awscloud.com/rs/112-TZM-766/images/AWS-Black-Belt_2024_AWS-SAW-EC2-Nitro-Migration_0215_v1.pdf)
 
 
-上記以外の方法として「nitro_check_script.sh スクリプトを実行し、前提条件を確認する」という手法もあるが、このスクリプトは2025/12現在、最終更新が約5年前でありメンテナンス状況が不明であるため本ランブックでのみ検証を行う。
+上記以外の方法として「nitro_check_script.sh スクリプトを実行し、前提条件を確認する」という手法もあるが、このスクリプトは2025/12現在、最終更新が約5年前でありメンテナンス状況が不明であるため本ランブックでのみ検証を行う。  
 参考：[https://repost.aws/ja/knowledge-center/boot-error-linux-nitro-instance](https://repost.aws/ja/knowledge-center/boot-error-linux-nitro-instance)
 
-OSの要件は以下から確認すること
+OSの要件は以下から確認すること。  
 [https://docs.aws.amazon.com/systems-manager-automation-runbooks/latest/userguide/automation-awssupport-migrate-xen-to-nitro.html](https://docs.aws.amazon.com/systems-manager-automation-runbooks/latest/userguide/automation-awssupport-migrate-xen-to-nitro.html)
 
 ## 実行前の準備（Runbook 実行に必要なもの）
 
 - SAW（SSM Automation）を実行できる IAM 権限を用意する（EC2 操作・SSM Automation 実行など）。
     
-    ※環境がなければ別記事「VirtualBox仮想マシンをAWS EC2に移行する」を参照し、EC2を作成する。この記事の内容に沿って環境を構築した場合追加でSSMと通信するためのセキュリティグループやロールの設定が必要になるためTerraform設定ファイルに以下を追記する。
+    ※環境がなければ別記事「VirtualBox仮想マシンをAWS EC2に移行する」を参照し、EC2を作成する。この記事の内容に沿って環境を構築した場合、追加でSSMと通信するためのセキュリティグループやロールの設定が必要になるためTerraform設定ファイルに以下を追記する。
     
     ```hcl
     #SSMと通信するにはSGがエンドポイントと接続できる必要があるため、以下の穴あけをする
@@ -134,11 +134,11 @@ aws ssm describe-instance-information
 ### Runbook 別の注意点
 
 - AWSSupport-CheckXenToNitroMigrationRequirements
-    - 公式ドキュメントに記載の権限ec2:DescribeInstanceTypesがタイポしているので注意。
+    - 公式ドキュメントに記載の権限[ec2:DescribeInstanceTypes]はタイポしているので注意。
     - 公式ドキュメント：[https://docs.aws.amazon.com/ja_jp/systems-manager-automation-runbooks/latest/userguide/automation-awssupport-checkxentonitromigrationrequirements.html](https://docs.aws.amazon.com/ja_jp/systems-manager-automation-runbooks/latest/userguide/automation-awssupport-checkxentonitromigrationrequirements.html)
 
 - AWSSupport-MigrateXenToNitroLinux
-    - 公式ドキュメントに記載の権限だけでは、環境によっては不足があり **そのまま実行すると失敗する（実際に試して失敗した）。**本検証では検証を先に進めるため、細かい権限調整は行わず **`AdministratorAccess` を付与して実行**した
+    - 公式ドキュメントに記載の権限だけでは、環境によっては不足があり そのまま実行すると失敗する（実際に検証して失敗した）。本検証では検証を先に進めるため、細かい権限調整は行わず **`AdministratorAccess` を付与して実行**した
     - 公式ドキュメント：[https://docs.aws.amazon.com/ja_jp/systems-manager-automation-runbooks/latest/userguide/automation-awssupport-migrate-xen-to-nitro.html](https://docs.aws.amazon.com/ja_jp/systems-manager-automation-runbooks/latest/userguide/automation-awssupport-migrate-xen-to-nitro.html)
     
     以上を踏まえ、ランブック実行のためのTerraform設定ファイルは以下となる。
@@ -313,7 +313,7 @@ Step 1 の要件チェックで ENA attribute / ENA driver が FAILED になっ�
 
 ## Step 3. ENA ドライバ（ena.ko）を導入し、initramfs に含める
 
-AWSSupport-CheckXenToNitroMigrationRequirements の ENA driver FAILED を解消するため、ena.ko を OS に認識させ、さらに initramfs に確実に含める。
+AWSSupport-CheckXenToNitroMigrationRequirements の ENA driver FAILED を解消するため、ena.ko を OS に認識させ、さらに initramfs に確実に含める。  
 ※ ena.ko 自体の作り方（make 等）は本手順では扱わないが、git clone [https://github.com/amzn/amzn-drivers.git](https://github.com/amzn/amzn-drivers.git)を行い、amzn-drivers/kernel/linux/ena配下でmakeを実行するのみである。
 
 [ena.ko](./materials/ena.ko)
@@ -468,8 +468,7 @@ Clone&MigrateかFullMigrationのどちらかを選択。
 
 - Acknowledgement（必須）
 
-ランブック実行許可のために、[Yes, I understand and acknowledge]を入力。
-
+ランブック実行許可のために、[Yes, I understand and acknowledge]を入力。  
 上記を踏まえ、ランブックを実行する。途中2回ほど、SNSトピックで指定した連絡先に[AWS Notification Message]が届くのでそれらを承認すること。
 
 ![image7.png](./images/image7.png)
@@ -478,8 +477,7 @@ Clone&MigrateかFullMigrationのどちらかを選択。
 
 ![image8.png](./images/image8.png)
 
-コンソールを見ると三つのインスタンスができている。
-
+コンソールを見ると三つのインスタンスができている。  
 赤枠がクローン元のEC2,緑枠がクローン前のテスト時に作成されたEC2,青枠がクローン後のEC2である。
 
 ![image9.png](./images/image9.png)
