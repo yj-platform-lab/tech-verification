@@ -1,4 +1,4 @@
-# GitHub 構成を Terraform でコード管理する ― Organization 移行と Import 検証
+# GitHub を Terraform で管理する ― Organization 移行と Import 検証
 
 ## 背景
 
