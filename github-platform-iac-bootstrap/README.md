@@ -1,10 +1,10 @@
-# GitHub を Terraform で管理する ― Organization 移行と Import 検証
+# GitHubをTerraformで管理する
 
 ## 背景
 
 これまで個人アカウント配下で複数のリポジトリ（tech-verification、work、dotfiles など）を管理してきた。
 
-Terraform を用いた Infrastructure as Code の検証を進める中で、GitHub の Repository や権限設定をコードで管理するという事例を目にした。これをきっかけに、GitHub もまた一つの基盤として捉え、IaC の考え方を適用できるのではないかと考えた。
+Terraformを用いたIaCの検証を進める中で、GitHubのRepositoryや権限設定をコードで管理するという事例を目にした。これをきっかけに、GitHub もまた一つの基盤として捉え、IaC の考え方を適用できるのではないかと考えた。
 
 GitHub を手動で管理するのではなくコードとして定義できれば、構成の再現性や一貫性を担保できる。特に企業利用を想定した場合、GitHub は個人単位ではなく Organization 単位で管理されることが一般的であり、リポジトリの所有権や権限設計といった管理構造を明確に定義する必要がある。
 
@@ -14,10 +14,9 @@ GitHub を手動で管理するのではなくコードとして定義できれ�
 
 本検証では以下を達成することを目的とする。
 
-- Organization 配下へのリポジトリ移管
-- 既存 Repository の Terraform への import
-- Terraform による GitHub Repository の管理
-- 将来的な GitHub Actions との連携を前提とした構成設計
+- Organization配下へのリポジトリ移管
+- 既存RepositoryのTerraformへのimport
+- TerraformによるGitHub Repositoryの管理
 
 ## **現在のリポジトリ構成**
 
@@ -55,13 +54,13 @@ JunnosukeYufu（個人アカウント）
 
 ### 1. Organizationの作成
 
-はじめにOrganizationを作成する。GitHub Organization は Terraform では新規作成できないため、あらかじめ手動で作成する必要がある。
+はじめにOrganizationを作成する。GitHub OrganizationはTerraformでは新規作成できないため、あらかじめ手動で作成する必要がある。
 
-本検証では Organization 名を `yj-platform-lab` とする。ここで**Organization 名はグローバルで一意であることに注意**。またMFAの登録も行っておくこと。
+本検証では Organization名を `yj-platform-lab` とする。ここで**Organization名はグローバルで一意であることに注意**。またMFAの登録も行っておくこと。
 
 ### 2.PATの作成
 
-次に、Terraform から GitHub API を操作するための認証情報として、Personal Access Token（PAT）を作成する。
+次に、TerraformからGitHub APIを操作するための認証情報として、Personal Access Token（PAT）を作成する。
 
 1. GitHub → 右上アイコン → Settings  
 2. Developer settings  
@@ -85,7 +84,7 @@ JunnosukeYufu（個人アカウント）
 
 ![image2.png](./images/image2.png)
 
-4. 移管先のOrganization 名とRepository 名を入力する
+4. 移管先のOrganization名とRepository名を入力する
 
 ![image3.png](./images/image3.png)
 
@@ -95,7 +94,7 @@ JunnosukeYufu（個人アカウント）
 
 ### 4. 現行のリモートリポジトリ設定変更（オプション）
 
-Repository 移管後も旧URLからのリダイレクトにより push は可能である。しかし、管理対象を明確にするため、各リポジトリのremote URL は Organization 配下のURLへ更新する。
+Repository移管後も旧URLからのリダイレクトによりpushは可能である。しかし、管理対象を明確にするため、各リポジトリのremote URLはOrganization配下のURLへ更新する。
 
 ```hcl
 #ローカルリモートが旧URLであることを確認
@@ -143,7 +142,7 @@ provider "github" {
 
 variables.tf  
 ここでは **PATの値をファイル内に記載しないことがポイント** である。
-terraform apply 実行時に、手順2で作成したPATの入力を都度求められるが、トークンをコードや tfvars に保存しない運用のほうが安全である。
+terraform apply実行時に、手順2で作成したPATの入力を都度求められるが、トークンをコードやtfvarsに保存しない運用のほうが安全である。
 
 ```hcl
 variable "github_token" {
@@ -191,7 +190,7 @@ git push -u origin main
 
 ## 7.Terraform Importによる既存リポジトリの管理化
 
-既存の 各 リポジトリを Terraform 管理下に取り込む。
+既存の各リポジトリをTerraform管理下に取り込む。
 
 最終目標は、`terraform plan` 実行時に
 
@@ -222,7 +221,7 @@ terraform import github_repository.dotfiles dotfiles
 TF_LOG=DEBUG terraform import github_repository.dotfiles yj-platform-lab/dotfiles
 ```
 
-terraform plan で差分確認する。  
+terraform planで差分確認する。  
 差分が出る場合、それはコードと GitHubの設定が一致していない ことを意味する。
 
 
@@ -258,7 +257,7 @@ GitHubの設定がコードに合わせて更新される。
 
 ## 9.目標
 
-最終的にterraform planを 実行後  
+最終的にterraform planを実行後  
 ```
 No changes. Your infrastructure matches theconfiguration.
 ```
