@@ -21,7 +21,7 @@
 - Terraformで基盤構築とAMIを使用したEC2起動手順
 
 
-## 前提条件
+## Workflow
 
 VirtualBox上のRHEL7VMをOVAとしてS3にアップロードし、import-imageでAMI化する。  
 AMIからEC2を起動し、環境を再現する。
