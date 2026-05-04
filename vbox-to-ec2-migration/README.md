@@ -23,7 +23,8 @@
 
 ## Workflow
 
-VirtualBox上のRHEL7VMをOVAとしてS3にアップロードし、import-imageでAMI化する。AMIからEC2を起動し、環境を再現する。
+VirtualBox上のRHEL7VMをOVAとしてS3にアップロードし、import-imageでAMI化する。AMIからEC2を起動し、環境を再現する。  
+
 ![image3.png](./images/image3.png)
 
 ## 手順
