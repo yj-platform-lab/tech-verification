@@ -27,7 +27,7 @@ VirtualBox上のRHEL7VMをOVAとしてS3にアップロードし、import-image�
 
 ![image3.png](./images/image3.png)
 
-## 手順
+## Steps
 
 ### Step 1. Terraform で基盤を作る
 
