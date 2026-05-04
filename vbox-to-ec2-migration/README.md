@@ -1,37 +1,31 @@
 # VirtualBox仮想マシンをAWS EC2に移行する
 
-## 背景
-業務において、Amazon EC2 上で稼働するミドルウェアサーバを運用しており、OS には RHEL7 を使用している。ランニングコスト削減の観点から、AWS Compute Optimizer の提案をもとに EC2 のインスタンスタイプ変更を検討する必要があった。
+## Background
+業務において、Amazon EC2上で稼働するミドルウェアサーバ(RHEL7)を使用している。ランニングコスト削減の観点から、AWS Compute Optimizerの提案をもとに EC2 のインスタンスタイプ変更を検討する必要があった。
 
-一方、2026年1月時点でRHEL7 はすでにサポート終了しており、AWS 上では新規に RHEL7 の AMI を作成することができない。また、既存システムの特性上、短期間での OS アップグレードは難しい状況であった。そのため、既存環境を維持したままインスタンスタイプ変更や移行検証を行うには、RHEL7 環境を別の方法で用意する必要があった。
+一方、2026年1月時点でRHEL7はすでにサポート終了しており、AWS上では新規にRHEL7のAMIを作成することができない。また、既存システムの特性上、短期間でのOSアップグレードは難しい状況であった。このため、既存環境を維持したまま検証を行う手段が必要となった。
 
-そこで、ローカルの VirtualBox 上に RHEL7 環境を構築し、AWS の VM Import/Export を用いて AMI 化することで、RHEL7 環境を EC2 上に再現できるかを検証する。本検証のゴールは、VirtualBox の仮想マシンを AMI 化し、EC2 上で起動および SSH 接続できる状態までを再現することである。
-
-
-## 結論
-
-- VirtualBox 上の RHEL7 仮想マシンは、AWS VM Import/Export を利用することで  AMI 化し、EC2 上で起動および SSH 接続まで再現可能。
-- Import した AMI は Terraform 管理外となるため、Terraform では data source として参照する運用が現実的と思われる。
+そこで、本検証ではVirtualBox上にRHEL7環境を構築し、AWSのVM Import/Exportを用いてAMI化することで、EC2上で同等環境を再現可能か検証する。
 
 
-## この記事で分かること
+## Conclusion
 
-- VirtualBox VM（RHEL7.2）を OVA にエクスポート → S3 → AMI 化する流れ
-- VM Import/Export に必要な S3 / IAM ロールの位置づけ
-- Terraform で 基盤→EC2 起動までを分けて再現する手順
+- VirtualBox上のRHEL7仮想マシンは、AWS VM Import/Exportを利用することで  AMI化し、EC2上で起動およびSSH接続まで再現可能。
+- ImportしたAMIはTerraform管理外となるため、Terraformではdata sourceとして参照する運用が現実的である。
+
+
+## Key Takeaways
+
+- VirtualBoxのVM（RHEL7.2）をOVAにエクスポートし、S3経由でAMI化する一連の流れ
+- VM Import/Exportに必要な S3 / IAMロールの構成
+- Terraformで基盤構築とAMIを使用したEC2起動手順
 
 
 ## 前提条件
 
-- ローカル環境: Terraform が実行できること（基本操作が分かる）
-- ローカル環境: AWS CLI が使えること
-- 対象 VM: VirtualBox 上の RHEL 7.2 VM（SSH ログイン可能）
-- VirtualBox: 7.0
-- AWS: VM Import/Export を利用できるアカウント
-- VM Import/Export を使用
-    - [https://docs.aws.amazon.com/ja_jp/vm-import/latest/userguide/what-is-vmimport.html](https://docs.aws.amazon.com/ja_jp/vm-import/latest/userguide/what-is-vmimport.html)
-- 必要権限: S3 / IAM（ロール作成）/ EC2（import-image, describe, instance 起動）/ VPC 作成
-- 事前用意: AMI インポート用 S3 バケット + VM Import 用 IAM ロールを作成できること
+VirtualBox上のRHEL7VMをOVAとしてS3にアップロードし、import-imageでAMI化する。  
+AMIからEC2を起動し、環境を再現する。
+![image3.png](./images/image3.png)
 
 ## 手順
 
