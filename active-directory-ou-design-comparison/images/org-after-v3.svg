@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1400"
+     height="1040"
+     viewBox="-100 0 1400 1040">
+
+  <style>
+    .title { font-family: "Meiryo", "Yu Gothic", sans-serif; font-size: 24px; font-weight: 700; fill: #222; }
+    .box { fill: #ffffff; stroke: #666666; stroke-width: 1.2; }
+    .group-box { fill: #d9eef5; stroke: #5f7f8a; stroke-width: 1.2; }
+    .child-box { fill: #f2f3f4; stroke: #777777; stroke-width: 1.1; }
+    .line { fill: none; stroke: #666666; stroke-width: 1.4; shape-rendering: crispEdges; }
+    .label { font-family: "Meiryo", "Yu Gothic", sans-serif; font-size: 15px; fill: #222222; dominant-baseline: middle; }
+    .label-center { font-family: "Meiryo", "Yu Gothic", sans-serif; font-size: 15px; fill: #222222; dominant-baseline: middle; text-anchor: middle; }
+  </style>
+
+  <text class="title" x="40" y="38">株式会社Example Systems 組織図（組織改正後）</text>
+
+  <!-- ===================================================== -->
+  <!-- CEO -->
+  <!-- ===================================================== -->
+  <rect class="box" x="-60" y="492" width="150" height="46"/>
+  <text class="label-center" x="15" y="515">代表取締役</text>
+
+  <!-- Main horizontal line from CEO -->
+  <path class="line" d="M 90 515 H 320"/>
+
+  <!-- Executive branch -->
+  <path class="line" d="M 210 515 V 445"/>
+  <rect class="group-box" x="135" y="425" width="150" height="40"/>
+  <text class="label-center" x="210" y="445">経営層</text>
+
+  <!-- Main vertical trunk -->
+  <path class="line" d="M 320 180 V 965"/>
+
+  <!-- ===================================================== -->
+  <!-- Corporate -->
+  <!-- ===================================================== -->
+  <path class="line" d="M 320 180 H 360"/>
+  <rect class="group-box" x="360" y="156" width="250" height="48"/>
+  <text class="label" x="375" y="180">コーポレート本部</text>
+
+  <path class="line" d="M 610 180 H 700"/>
+  <path class="line" d="M 700 150 V 210"/>
+  <path class="line" d="M 700 150 H 780"/>
+  <path class="line" d="M 700 210 H 780"/>
+
+  <rect class="child-box" x="780" y="130" width="320" height="40"/>
+  <text class="label" x="795" y="150">人事・総務部</text>
+
+  <rect class="child-box" x="780" y="190" width="320" height="40"/>
+  <text class="label" x="795" y="210">経理・管理部</text>
+
+  <!-- ===================================================== -->
+  <!-- Sales -->
+  <!-- ===================================================== -->
+  <path class="line" d="M 320 310 H 360"/>
+  <rect class="group-box" x="360" y="286" width="250" height="48"/>
+  <text class="label" x="375" y="310">営業本部</text>
+
+  <path class="line" d="M 610 310 H 700"/>
+  <path class="line" d="M 700 280 V 340"/>
+  <path class="line" d="M 700 280 H 780"/>
+  <path class="line" d="M 700 340 H 780"/>
+
+  <rect class="child-box" x="780" y="260" width="320" height="40"/>
+  <text class="label" x="795" y="280">エンタープライズ営業部</text>
+
+  <rect class="child-box" x="780" y="320" width="320" height="40"/>
+  <text class="label" x="795" y="340">ソリューション営業部</text>
+
+  <!-- ===================================================== -->
+  <!-- Technology -->
+  <!-- ===================================================== -->
+  <path class="line" d="M 320 545 H 360"/>
+  <rect class="group-box" x="360" y="521" width="250" height="48"/>
+  <text class="label" x="375" y="545">テクノロジー本部</text>
+
+  <!-- Technology local trunk -->
+  <path class="line" d="M 610 545 H 680"/>
+  <path class="line" d="M 680 440 V 650"/>
+
+  <!-- Product Development -->
+  <path class="line" d="M 680 440 H 720"/>
+  <rect class="group-box" x="720" y="416" width="220" height="48"/>
+  <text class="label" x="735" y="440">プロダクト開発部</text>
+
+  <path class="line" d="M 940 440 H 990"/>
+  <path class="line" d="M 990 410 V 470"/>
+  <path class="line" d="M 990 410 H 1030"/>
+  <path class="line" d="M 990 470 H 1030"/>
+
+  <rect class="child-box" x="1030" y="390" width="230" height="40"/>
+  <text class="label" x="1045" y="410">アプリケーション開発課</text>
+
+  <rect class="child-box" x="1030" y="450" width="230" height="40"/>
+  <text class="label" x="1045" y="470">データ・AI課</text>
+
+  <!-- Platform -->
+  <path class="line" d="M 680 545 H 720"/>
+  <rect class="group-box" x="720" y="521" width="220" height="48"/>
+  <text class="label" x="735" y="545">プラットフォーム部</text>
+
+  <path class="line" d="M 940 545 H 990"/>
+  <path class="line" d="M 990 515 V 575"/>
+  <path class="line" d="M 990 515 H 1030"/>
+  <path class="line" d="M 990 575 H 1030"/>
+
+  <rect class="child-box" x="1030" y="495" width="230" height="40"/>
+  <text class="label" x="1045" y="515">クラウド基盤課</text>
+
+  <rect class="child-box" x="1030" y="555" width="230" height="40"/>
+  <text class="label" x="1045" y="575">ネットワーク・セキュリティ課</text>
+
+  <!-- SRE / Operations -->
+  <path class="line" d="M 680 650 H 720"/>
+  <rect class="group-box" x="720" y="626" width="220" height="48"/>
+  <text class="label" x="735" y="650">SRE・サービス運用部</text>
+
+  <path class="line" d="M 940 650 H 990"/>
+  <path class="line" d="M 990 620 V 680"/>
+  <path class="line" d="M 990 620 H 1030"/>
+  <path class="line" d="M 990 680 H 1030"/>
+
+  <rect class="child-box" x="1030" y="600" width="230" height="40"/>
+  <text class="label" x="1045" y="620">SRE課</text>
+
+  <rect class="child-box" x="1030" y="660" width="230" height="40"/>
+  <text class="label" x="1045" y="680">サービス運用課</text>
+
+  <!-- ===================================================== -->
+  <!-- Information Systems -->
+  <!-- ===================================================== -->
+  <path class="line" d="M 320 965 H 360"/>
+  <rect class="group-box" x="360" y="941" width="250" height="48"/>
+  <text class="label" x="375" y="965">情報システム部</text>
+
+  <path class="line" d="M 610 965 H 780"/>
+  <rect class="child-box" x="780" y="945" width="320" height="40"/>
+  <text class="label" x="795" y="965">コーポレートIT課</text>
+
+</svg>
