@@ -777,7 +777,7 @@ Windows 11でログオンに使用したDCと検出できるDCを確認する。
 ※またここでwin11のDNSがDC2022を向いていないとログオン先DCは変わらないので注意
 
 
-| Win11確認タイミング | ログオン先DC（`$env:LOGONSERVER`） | 認識できるDC（`nltest /dclist:frslab.example.test`） |
+| Win11確認タイミング | ログオン先DC（`$env:LOGONSERVER`） | 認識できるDC<br>（`nltest /dclist:frslab.example.test`） |
 | --- | --- | --- |
 | DC2022昇格前 | \\DC2012R2-01 | DC2012R2-01、DC2012R2-02 |
 | DC2022昇格後 | \\DC2012R2-01 | DC2012R2-01、DC2012R2-02、DC2022<br>※[PDC]のフラグはDC2012R2-01についている |
