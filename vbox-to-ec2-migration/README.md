@@ -1,33 +1,24 @@
-# VirtualBox仮想マシンをAWS EC2に移行する
+# VirtualBox仮想マシンをEC2に移行する
 
-## Background
-業務において、Amazon EC2上で稼働するミドルウェアサーバ(RHEL7)を使用している。ランニングコスト削減の観点から、AWS Compute Optimizerの提案をもとに EC2 のインスタンスタイプ変更を検討する必要があった。
+## 検証の背景
+業務で使用しているEC2（RHEL 7）はXen世代のインスタンスであり、コスト削減に向けてインスタンスタイプの変更を検討している。
 
-一方、2026年1月時点でRHEL7はすでにサポート終了しており、AWS上では新規にRHEL7のAMIを作成することができない。また、既存システムの特性上、短期間でのOSアップグレードは難しい状況であった。このため、既存環境を維持したまま検証を行う手段が必要となった。
-
-そこで、本検証ではVirtualBox上にRHEL7環境を構築し、AWSのVM Import/Exportを用いてAMI化することで、EC2上で同等環境を再現可能か検証する。
+しかし、検証時点ではAWS上でRHEL 7のAMIが提供されていなかった。そこで、VirtualBox上にRHEL 7環境を構築し、VM Import/ExportでAMI化することで、EC2上に検証環境を再現できるか確認する。
 
 
-## Conclusion
+## 検証結果
 
-- VirtualBox上のRHEL7仮想マシンは、AWS VM Import/Exportを利用することで  AMI化し、EC2上で起動およびSSH接続まで再現可能。
-- ImportしたAMIはTerraform管理外となるため、Terraformではdata sourceとして参照する運用が現実的である。
-
-
-## Key Takeaways
-
-- VirtualBoxのVM（RHEL7.2）をOVAにエクスポートし、S3経由でAMI化する一連の流れ
-- VM Import/Exportに必要な S3 / IAMロールの構成
-- Terraformで基盤構築とAMIを使用したEC2起動手順
+- VirtualBox上の仮想マシンは、AWS VM Import/Exportを利用することでAMI化し、EC2上で起動およびSSH接続まで再現可能。
+- ImportしたAMIはTerraform管理外となるため、Terraformではdata sourceとして参照する運用が現実的。
 
 
-## Workflow
+## 全体の流れ
 
-VirtualBox上のRHEL7VMをOVAとしてS3にアップロードし、import-imageでAMI化する。AMIからEC2を起動し、環境を再現する。  
+VirtualBoxからExportしたRHEL 7（OVAファイル）をS3にアップロードし、import-imageでAMI化する。その後AMIからEC2を起動し、AWS環境にRHEL 7を構築する。  
 
-![image3.png](./images/image3.png)
+![image3.png](./images/vbox-to-ec2-migration_flow.png)
 
-## Steps
+## 手順
 
 ### Step 1. Terraform で基盤を作る
 
@@ -39,224 +30,26 @@ Terraformで以下のリソースをまとめて構築する。
 - Route Table + Association
 - Security Group
 - IAMロール（VM Import用）
-    - **なぜ IAM ロールを作成する必要があるのか。**
-    それは後述する aws ec2 import-image によるAMI変換処理が、CLIを実行したユーザではなくAWSの VM Import/Exportサービスによって実行されるためである。そのため、S3 上の OVA にアクセスする権限をAWSサービスへ委譲する必要があり、VM Import 用の IAMロールを事前に作成する必要がある。
+> 
+> **なぜIAMロールが必要なのか**
+>
+> `aws ec2 import-image`によるAMI変換は、AWSのVM Import/Exportサービスが実行する。このサービスにS3上のOVAを読み取る権限などを付与するため、事前にIAMロールを作成する必要がある。  
+(参考）[https://docs.aws.amazon.com/ja_jp/vm-import/latest/userguide/required-permissions.html](https://docs.aws.amazon.com/ja_jp/vm-import/latest/userguide/required-permissions.html)
 
 
-基盤構築に使用したTerraform設定ファイルは以下。
-```hcl
-# ---------------------------------------                                                                                  
-# Terraform configuration                                                                                                  
-# ---------------------------------------                                                                                  
-terraform {                                                                                                                
-  required_providers {                                                                                                     
-    aws = {                                                                                                                
-      source  = "hashicorp/aws"                                                                                            
-      version = "~>6.0"                                                                                                    
-    }                                                                                                                      
-  }                                                                                                                        
-}                                                                                                                          
-                                                                                                                           
-provider "aws" {                                                                                                           
-  region = "ap-northeast-1"                                                                                                
-}                                                                                                                          
-                                                                                                                           
-# ---------------------------------------                                                                                  
-# Variables                                                                                                                
-# ---------------------------------------                                                                                  
-variable "project" {                                                                                                       
-  type    = string                                                                                                         
-  default = "vmimport-demo"                                                                                                
-}                                                                                                                          
-                                                                                                                           
-variable "environment" {                                                                                                   
-  type    = string                                                                                                         
-  default = "dev"                                                                                                          
-}                                                                                                                          
-                                                                                                                           
-# ---------------------------------------                                                                                  
-# S3 bucket                                                                                                                
-# ---------------------------------------                                                                                  
-resource "random_string" "s3_unique_key" {                                                                                 
-  length  = 6                                                                                                              
-  upper   = false                                                                                                          
-  lower   = true                                                                                                           
-  numeric = true                                                                                                           
-  special = false                                                                                                          
-}                                                                                                                          
-                                                                                                                           
-resource "aws_s3_bucket" "s3_deploy_bucket" {                                                                              
-  bucket = "${var.project}-${var.environment}-bucket-${random_string.s3_unique_key.result}"                                
-}                                                                                                                          
-                                                                                                                           
-resource "aws_s3_bucket_public_access_block" "s3_deploy_bucket" {                                                          
-  bucket                  = aws_s3_bucket.s3_deploy_bucket.id                                                              
-  block_public_acls       = true                                                                                           
-  block_public_policy     = true                                                                                           
-  ignore_public_acls      = true                                                                                           
-  restrict_public_buckets = true                                                                                           
-}                                                                                                                          
-                                                                                                                           
-                                                                                                                           
-# ---------------------------------------                                                                                  
-# VPC / Subnet / Route / IGW                                                                                               
-# ---------------------------------------                                                                                  
-resource "aws_vpc" "vpc" {                                                                                                 
-  cidr_block = "192.168.0.0/20"                                                                                            
-                                                                                                                           
-  tags = {                                                                                                                 
-    Name    = "${var.project}-${var.environment}-vpc"                                                                      
-    Project = var.project                                                                                                  
-    Env     = var.environment                                                                                              
-  }                                                                                                                        
-}                                                                                                                          
-                                                                                                                           
-resource "aws_subnet" "public_subnet_1a" {                                                                                 
-  vpc_id                  = aws_vpc.vpc.id                                                                                 
-  cidr_block              = "192.168.1.0/24"                                                                               
-  availability_zone       = "ap-northeast-1a"                                                                              
-  map_public_ip_on_launch = true                                                                                           
-                                                                                                                           
-  tags = {                                                                                                                 
-    Name    = "${var.project}-${var.environment}-public-subnet-1a"                                                         
-    Project = var.project                                                                                                  
-    Env     = var.environment                                                                                              
-    type    = "public"                                                                                                     
-  }                                                                                                                        
-}                                                                                                                          
-                                                                                                                           
-resource "aws_route_table" "public_rt" {                                                                                   
-  vpc_id = aws_vpc.vpc.id                                                                                                  
-                                                                                                                           
-  tags = {                                                                                                                 
-    Name    = "${var.project}-${var.environment}-public-rt"                                                                
-    Project = var.project                                                                                                  
-    Env     = var.environment                                                                                              
-    type    = "public"                                                                                                     
-  }                                                                                                                        
-}                                                                                                                          
-                                                                                                                           
-resource "aws_route_table_association" "public-rt-1a" {                                                                    
-  route_table_id = aws_route_table.public_rt.id                                                                            
-  subnet_id      = aws_subnet.public_subnet_1a.id                                                                          
-}                                                                                                                          
-                                                                                                                           
-resource "aws_internet_gateway" "igw" {                                                                                    
-  vpc_id = aws_vpc.vpc.id                                                                                                  
-                                                                                                                           
-  tags = {                                                                                                                 
-    Name    = "${var.project}-${var.environment}-igw"                                                                      
-    Project = var.project                                                                                                  
-    Env     = var.environment                                                                                              
-  }                                                                                                                        
-}                                                                                                                          
-                                                                                                                           
-resource "aws_route" "public_rt_igw_r" {                                                                                   
-  route_table_id         = aws_route_table.public_rt.id                                                                    
-  destination_cidr_block = "0.0.0.0/0"                                                                                     
-                                                                                                                           
-  gateway_id = aws_internet_gateway.igw.id                                                                                 
-}                                                                                                                          
-                                                                                                                           
-# ---------------------------------------                                                                                  
-# Security Group                                                                                                           
-# ---------------------------------------                                                                                  
-resource "aws_security_group" "ssh_sg" {                                                                                   
-  name        = "${var.project}-${var.environment}-ssh-sg"                                                                 
-  description = "ssh security group"                                                                                       
-  vpc_id      = aws_vpc.vpc.id                                                                                             
-                                                                                                                           
-  tags = {                                                                                                                 
-    Name    = "${var.project}-${var.environment}-ssh-sg"                                                                   
-    Project = var.project                                                                                                  
-    Env     = var.environment                                                                                              
-  }                                                                                                                        
-}                                                                                                                          
-                                                                                                                           
-resource "aws_security_group_rule" "ssh_in" {                                                                              
-  security_group_id = aws_security_group.ssh_sg.id                                                                         
-  type              = "ingress"                                                                                            
-  protocol          = "tcp"                                                                                                
-  from_port         = 22                                                                                                   
-  to_port           = 22                                                                                                   
-  cidr_blocks       = ["0.0.0.0/0"]                                                                                        
-}                                                                                                                          
-                                                                                                                           
-# ---------------------------------------                                                                                  
-# IAM Role (trust policy + permissions)                                                                                    
-# ---------------------------------------                                                                                  
-data "aws_iam_policy_document" "vmimport_trust" {                                                                          
-  statement {                                                                                                              
-    effect = "Allow"                                                                                                       
-                                                                                                                           
-    principals {                                                                                                           
-      type        = "Service"                                                                                              
-      identifiers = ["vmie.amazonaws.com"]                                                                                 
-    }                                                                                                                      
-                                                                                                                           
-    actions = ["sts:AssumeRole"]                                                                                           
-                                                                                                                           
-    condition {                                                                                                            
-      test     = "StringEquals"                                                                                            
-      variable = "sts:Externalid"                                                                                          
-      values   = ["vmimport"]                                                                                              
-    }                                                                                                                      
-  }                                                                                                                        
-}                                                                                                                          
-                                                                                                                           
-resource "aws_iam_role" "vmimport" {                                                                                       
-  name               = "vmimport"                                                                                          
-  assume_role_policy = data.aws_iam_policy_document.vmimport_trust.json                                                    
-}                                                                                                                          
-                                                                                                                           
-                                                                                                                           
-data "aws_iam_policy_document" "vmimport_role_policy" {                                                                    
-  statement {                                                                                                              
-    effect = "Allow"                                                                                                       
-    actions = [                                                                                                            
-      "s3:GetBucketLocation",                                                                                              
-      "s3:GetObject",                                                                                                      
-      "s3:ListBucket"                                                                                                      
-    ]                                                                                                                      
-    resources = [                                                                                                          
-      aws_s3_bucket.s3_deploy_bucket.arn,                                                                                  
-      "${aws_s3_bucket.s3_deploy_bucket.arn}/*"                                                                            
-    ]                                                                                                                      
-  }                                                                                                                        
-                                                                                                                           
-  statement {                                                                                                              
-    effect = "Allow"                                                                                                       
-    actions = [                                                                                                            
-      "ec2:ModifySnapshotAttribute",                                                                                       
-      "ec2:CopySnapshot",                                                                                                  
-      "ec2:RegisterImage",                                                                                                 
-      "ec2:Describe*"                                                                                                      
-    ]                                                                                                                      
-    resources = ["*"]                                                                                                      
-  }                                                                                                                        
-}                                                                                                                          
-                                                                                                                           
-resource "aws_iam_role_policy" "vmimport" {                                                                                
-  name   = "vmimport"                                                                                                      
-  role   = aws_iam_role.vmimport.id                                                                                        
-  policy = data.aws_iam_policy_document.vmimport_role_policy.json                                                          
-}         
-```
-
-（IAMのユーザ権限の詳細は以下参照）<br>
-[https://docs.aws.amazon.com/ja_jp/vm-import/latest/userguide/required-permissions.html](https://docs.aws.amazon.com/ja_jp/vm-import/latest/userguide/required-permissions.html)
+基盤構築に使用したTerraform設定は、main-sample.tfに記載した（固有情報はマスク済み）
 
 
-### Step 2. SSH 鍵を作成しVM へ登録することで、ローカルから VM へログインできることを確認
+### Step 2. SSH鍵を作成・登録し、ローカルからVMへの接続を確認
 
-EC2に移行した後も同じ鍵でログインできるように、ローカル環境でSSH鍵を作成し、VirtualBox VMに取り込んで接続確認をする。以下のコマンドでSSH鍵を生成。
+EC2に移行した後も同じ鍵でログインできるようローカル環境でSSH鍵を作成し、VirtualBox VMに取り込んで接続確認をする。以下のコマンドでSSH鍵を生成。  
 ```bash
-#鍵生成（ローカルPC）
 ssh-keygen -t ed25519 -f <鍵の名前>
 ```
 
+<br>
 
-上記で作成される公開鍵をVirtualBox上の仮想マシンに登録。
+上記で作成される公開鍵をVirtualBox上の仮想マシンに登録。  
 ```bash
 #公開鍵をVM側へ登録（VM内で実行）
 mkdir -p ~/.ssh
@@ -266,6 +59,7 @@ chmod 700 /home/<ユーザ名>/.ssh
 chmod 600 /home/<ユーザ名>/.ssh/authorized_keys
 ```
 
+<br>
 
 ローカルPCから鍵を指定してSSH接続できるか確認。
 ```bash
@@ -274,10 +68,13 @@ ssh -i <秘密鍵> <ユーザ名>@<ipアドレス>
 ```
 
 
-### Step 3. VirtualBox VM を停止し、OVA をエクスポートする
+### Step 3. VirtualBox VMを停止し、OVAエクスポート
 
-Step2が完了したら、VirtualBox上の仮想マシンをシャットダウンする。その後「ファイル」→「仮想アプライアンスのエクスポート」を選択し、対象の仮想マシンを選択
+Step2が完了後VirtualBox上の仮想マシンをシャットダウンする。  
+その後「ファイル」→「仮想アプライアンスのエクスポート」を選択し、対象の仮想マシンを選択
 ![image1.png](./images/image1.png)
+
+<br>
 
 フォーマットの設定はovaファイルとする。[完了]を選択し、ovaファイルをエクスポート。
 ![image2.png](./images/image2.png)
@@ -285,23 +82,23 @@ Step2が完了したら、VirtualBox上の仮想マシンをシャットダウ�
 指定したフォルダにovaファイルが生成されていることを確認する。
 
 
-### Step 4. OVA を S3 にアップロードする
+### Step 4. OVAアップロード
 
-Step1で作成したS3バケット に Step3で取得した`rhel72.ova` をインポートする。
+Step1で作成したS3バケットにStep3で取得した`rhel72.ova` をアップロードする。
 ```bash
 #S3バケット一覧を表示
 aws s3 ls
 
-#フェーズ1で作成したs3にインポート
+#フェーズ1で作成したs3にアップロード
 aws s3 cp rhel72.ova s3://<フェーズ1で作成したs3>
 
-#ovaファイルがエクスポートされていることを確認
+#ovaファイルがアップロードされていることを確認
 aws s3 ls <フェーズ1で作成したs3>
 ```
 
-### Step 5. `import-image` で AMI を作る → 完了まで状態確認 → ImageId を把握
+### Step 5. `import-image` でAMI作成 → 完了まで状態確認 → ImageId を把握
 
-Step4でS3に取り込んだOVA を AMI に変換する。
+Step4でS3に取り込んだOVAをAMIに変換する。
 ```bash
 #S3に置いたovaをAMIに変換
 aws ec2 import-image \
@@ -321,13 +118,14 @@ aws ec2 describe-import-image-tasks
 aws ec2 describe-images --owner self
 ```
 
-### Step 6. AMI 情報を確認し、Terraform の data source で参照できるようにする
+### Step 6. AMI情報を確認し、Terraformのdata sourceで参照できるようにする
 
 Step5でVM Importにより作成したAMIはAWS CLIで作成されているため、Terraformでは直接管理されていない。そのため、EC2 インスタンスをTerraformで作成する前に、対象となる AMI を特定するための情報（Name / root-device-type / virtualization-type）を確認する必要がある。
 ```bash
 #Step5のコマンドで取得したImageIDを使用して以下のコマンドを実行
 aws ec2 describe-images --image-ids <フェーズ2のコマンドで取得したImageID>
 ```
+<br>
 
 上記でnameとroot-device-typeとvirtualization-typeを取得後、main.tfに以下を追加。
 ```hcl
@@ -355,7 +153,7 @@ data "aws_ami" "imported" {
 }
 ```
 
-### Step 7. KeyPair と EC2 を Terraform で作成し、起動確認する
+### Step 7. KeyPairとEC2をTerraformで作成し、起動確認
 
 AMI を使って EC2 を起動し、鍵で SSH 接続できる状態にする。
 ```hcl
@@ -373,6 +171,8 @@ resource "aws_key_pair" "ssh" {
   }
 }
 ```
+
+<br>
 
 [AMI Data Source]の情報をもとに、EC2を作成。
 ```hcl
@@ -395,6 +195,8 @@ resource "aws_instance" "imported" {
 }
 ```
 
+<br>
+
 terraform applyコマンドで上記を実行。実行後、EC2の作成情報を確認。
 ```bash
 #今terraform applyしたEC2のインスタンスIDを取得
@@ -406,8 +208,15 @@ aws ec2 describe-instances \
 aws ec2 describe-instance-status --instance-ids <インスタンスID>
 ```
 
-SSHで接続できるか検証し、本検証は終了となる。
+<br>
+
+SSHで接続できるか再度検証。
 ```bash
 #パスワードを聞かれずにログインできること
 ssh -i <公開鍵> <ユーザ名>@<ipアドレス>
 ```
+
+<br>
+
+SSH接続を確認し、VirtualBoxで構築したRHEL 7環境をEC2上に再現できた。  
+今回の手順は、VM Import/Exportが対応する他のOSにも応用できると考えられる。
