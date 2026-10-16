@@ -1,190 +1,34 @@
-# EC2をSSM Managed Instanceに認識させる
+# EC2をSystems Managerで管理するための前提条件
 
 ## 背景
-Amazon Linux 2023 を搭載した EC2 に対しSystems Manager Automation を用いた検証を行う中で、SSM Agent が標準インストールされているにもかかわらずManaged Instance として認識されない事象に直面した。  
-調査の結果、IAM ロール設定など複数の前提条件が必要であることが分かったため、本検証ではそれらを Terraform で整理する。
+Systems Manager AutomationのRunbookを使った検証のため、EC2をSystems Managerの管理対象にする必要があった。
+
+SSM AgentがインストールされていればRunbookは利用できると考えていたが、[前回の記事](https://github.com/yj-platform-lab/tech-verification/blob/main/vbox-to-ec2-migration/README.md)で作成したRHEL 7にSSM AgentをインストールしてもSystems Managerの管理対象として認識されなかった。そこで、必要なIAMロールや通信要件を整理し、Terraformで設定・検証する。
 
 ## 結論
-Managed Instance として認識させるには、SSM Agent のインストールだけではなく、AmazonSSMManagedInstanceCore を付与した IAM ロールをインスタンスプロファイル経由で EC2 に関連付け、かつ SSM エンドポイントへのアウトバウンド通信が可能である必要がある。
+今回の構成では、EC2をSystems Managerの管理対象にするために、以下の設定が必要だった。
 
-これらの前提条件を満たすことで、Systems Manager Automation Runbook を正常に実行できることを確認した。
+ - SSM Agentをインストールし、起動する。  
+ - AmazonSSMManagedInstanceCoreを付与したIAMロールを、インスタンスプロファイル経由でEC2に関連付ける。  
+ - SSMエンドポイントへのアウトバウンド通信を可能にする。
 
+これらの条件を満たすことで、Systems Manager AutomationのRunbookを正常に実行できることを確認した。
 
-## この記事で分かること
-- SSM Managed Instance に必要な IAM 構成
-- Terraform での最小構成例
-- SSM が利用するアウトバウンド通信要件
-
-
-## 前提条件
-
-- EC2 が Amazon Linux 2023 で起動していること
-- EC2 へ SSH ログイン可能であること
-- AWS CLI を実行できる環境
-- Terraform の基本操作が可能であること
-- EC2 の IAM ロール / SG を変更できる権限
-- EC2 が Internet Gateway 経由で外部通信可能（今回の検証範囲）
 
 ## 手順
 
 ### Step0:環境構築
 
-terraformで検証環境を用意する。使用したTerraform設定ファイルは以下を参照。  
+Terraformで検証環境を構築する。使用した設定は、main-sample.tfを参照（環境固有の情報はマスク済み）。  
 AMI IDは公式が提供しているIDを使用している。
 
-```hcl
-# ---------------------------------------
-# Terraform configuration
-# ---------------------------------------
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~>6.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = "ap-northeast-1"
-}
-
-# ---------------------------------------
-# Variables
-# ---------------------------------------
-variable "project" {
-  type    = string
-  default = "ssm-ready"
-}
-
-variable "environment" {
-  type    = string
-  default = "dev"
-}
-
-# ---------------------------------------
-# VPC / Subnet / Route / IGW
-# ---------------------------------------
-resource "aws_vpc" "vpc" {
-  cidr_block = "192.168.0.0/20"
-
-  tags = {
-    Name    = "${var.project}-${var.environment}-vpc"
-    Project = var.project
-    Env     = var.environment
-  }
-}
-
-resource "aws_subnet" "public_subnet_1a" {
-  vpc_id                  = aws_vpc.vpc.id
-  cidr_block              = "192.168.1.0/24"
-  availability_zone       = "ap-northeast-1a"
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name    = "${var.project}-${var.environment}-public-subnet-1a"
-    Project = var.project
-    Env     = var.environment
-    type    = "public"
-  }
-}
-
-resource "aws_route_table" "public_rt" {
-  vpc_id = aws_vpc.vpc.id
-
-  tags = {
-    Name    = "${var.project}-${var.environment}-public-rt"
-    Project = var.project
-    Env     = var.environment
-    type    = "public"
-  }
-}
-
-resource "aws_route_table_association" "public-rt-1a" {
-  route_table_id = aws_route_table.public_rt.id
-  subnet_id      = aws_subnet.public_subnet_1a.id
-}
-
-resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.vpc.id
-
-  tags = {
-    Name    = "${var.project}-${var.environment}-igw"
-    Project = var.project
-    Env     = var.environment
-  }
-}
-
-resource "aws_route" "public_rt_igw_r" {
-  route_table_id         = aws_route_table.public_rt.id
-  destination_cidr_block = "0.0.0.0/0"
-
-  gateway_id = aws_internet_gateway.igw.id
-}
-
-# ---------------------------------------
-# Security Group
-# ---------------------------------------
-resource "aws_security_group" "ssh_sg" {
-  name        = "${var.project}-${var.environment}-ssh-sg"
-  description = "ssh security group"
-  vpc_id      = aws_vpc.vpc.id
-
-  tags = {
-    Name    = "${var.project}-${var.environment}-ssh-sg"
-    Project = var.project
-    Env     = var.environment
-  }
-}
-
-resource "aws_security_group_rule" "ssh_in" {
-  security_group_id = aws_security_group.ssh_sg.id
-  type              = "ingress"
-  protocol          = "tcp"
-  from_port         = 22
-  to_port           = 22
-  cidr_blocks       = ["0.0.0.0/0"]
-}
-
-# ---------------------------------------
-# Key Pair
-# ---------------------------------------
-resource "aws_key_pair" "ssh" {
-  key_name   = "${var.project}-${var.environment}-keypair"
-  public_key = file("./<公開鍵>")
-
-  tags = {
-    Name    = "${var.project}-${var.environment}-keypair"
-    Project = var.project
-    Env     = var.environment
-  }
-}
-
-# ---------------------------------------
-# EC2 Instance
-# ---------------------------------------
-resource "aws_instance" "ssmec2" {
-  ami                         = "ami-09cd9fdbf26acc6b4"
-  instance_type               = "t3.micro"
-  subnet_id                   = aws_subnet.public_subnet_1a.id
-  associate_public_ip_address = true
-  vpc_security_group_ids = [aws_security_group.ssh_sg.id]
-  key_name               = aws_key_pair.ssh.key_name
-
-  tags = {
-    Name    = "${var.project}-${var.environment}-ssmec2"
-    Project = var.project
-    Env     = var.environment
-  }
-}
-```
 
 ### Step1:SSMに認識されていないことを確認
 
-まずは以下のコマンドで当該インスタンスの情報が表示されないことを確認する。もしインスタンスの情報が表示されるようであれば今回の作業は不要である。
+まずは以下のコマンドで当該インスタンスの情報が表示されないことを確認する。  
+インスタンスの情報が表示されるようであれば今回の作業はそもそも不要である。
 
 ```bash
-##SSM登録状況確認（実行結果にインスタンスの情報が表示されないことを確認する）
 aws ssm describe-instance-information
 ```
 
@@ -206,7 +50,7 @@ sudo yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/late
 
 ### Step3:EC2にIAMロールが付与されているか確認
 
-以下のコマンドを実行し、対象の EC2 インスタンスに AmazonSSMManagedInstanceCore ポリシーを持つ IAM ロールが付与されているかを確認する。  
+以下のコマンドを実行し、対象のEC2インスタンスにAmazonSSMManagedInstanceCoreポリシーを持つIAMロールが付与されているかを確認する。  
 参考:[https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/setup-instance-permissions.html](https://docs.aws.amazon.com/ja_jp/systems-manager/latest/userguide/setup-instance-permissions.html)
 
 ```bash
@@ -215,10 +59,24 @@ aws ec2 describe-instances \
   --query "Reservations[].Instances[].IamInstanceProfile"
 ```
 
-初回構築直後のEC2では、AmazonSSMManagedInstanceCoreを付与したIAMロールが設定されていない場合が多い。その場合は、Terraformを用いて新たにIAMロールおよび関連リソースを作成する。ここで押さえておきたいポイントは、以下の 2 点である。
+<br>
 
-- IAMロールの作成時には **信頼ポリシー（AssumeRole ポリシー）の定義が必須**であることに注意。そのため後述のHCLの記載ではセクションを分けている。一方、カスタムIAM ポリシーの作成は必須ではなく、AWS管理ポリシーをアタッチするだけでもよい。
-- 作成した IAMロールは**直接 EC2 にアタッチすることはできず**、必ず**インスタンスプロファイルを介して関連付ける必要がある**。
+今回構築したEC2にはIAMロールを設定していないため、IAMロールと関連リソースを作成する。ここで押さえておきたいポイントは、以下の3点である。
+
+- **Trust Policy（信頼ポリシー）**  
+  IAMロールの作成時に必須であり、「誰がそのロールを引き受けられるか」を定義する。今回は、EC2サービスによるロールの引き受けを許可する。
+
+- **Permissions Policy（権限ポリシー）**  
+  「そのロールで何ができるか」を定義する。権限ポリシーなしでもロールは作成できるが、今回必要なSSMの操作権限は付与されない。そのため、AWS管理ポリシーの`AmazonSSMManagedInstanceCore`をアタッチする。
+
+- **インスタンスプロファイル**  
+   AWSの仕様上、IAMロールをEC2に直接関連付けることはできず、インスタンスプロファイルを介して関連付ける必要がある。
+
+<br>
+
+図示すると以下のようになる  
+![IAM_role.png](./images/IAM_role.png)
+
 
 以下に、IAMロール、ポリシーのアタッチ、およびインスタンスプロファイルを作成する Terraform設定ファイルを示す。
 
@@ -262,6 +120,7 @@ resource "aws_iam_instance_profile" "ssm_ec2_profile" {
 
 ```
 
+<br>
 インスタンスプロファイル作成後、EC2 リソース側にもその設定を追記する必要がある。  
 以下のiam_instance_profile行が追記箇所である。
 
@@ -287,7 +146,10 @@ resource "aws_instance" "ssmec2" {
 
 ```
 
-terraform applyが終わったら、再度以下のコマンドでInstanceProfileが設定されているか確認しよう。今度は上記で設定したInstanceProfileの設定が現れるはずである。
+<br>
+
+terraform applyが終わったら、再度以下のコマンドでInstanceProfileが設定されているか確認する。  
+今度は上記で設定したInstanceProfileの設定が現れるはずである。
 
 ```bash
 aws ec2 describe-instances \
@@ -317,6 +179,8 @@ aws ec2 describe-security-groups \
   --query "SecurityGroups[].IpPermissionsEgress"
 ```
 
+<br>
+
 この結果に0.0.0.0/0が含まれていれば問題ない。しかしTerraformで設定を行った場合、これらのアウトバンドルールは別途設定する必要がある。そのためstep0で記載した# Security Groupセクションに以下の内容を追記する。
 
 ```hcl
@@ -329,6 +193,8 @@ resource "aws_security_group_rule" "allow_all_egress" {
   cidr_blocks       = ["0.0.0.0/0"]
 }
 ```
+
+<br>
 
 再度以下を実行して、アウトバンドのルールが表示されたらStep4は完了。
 
@@ -368,4 +234,4 @@ aws ssm describe-instance-information
 }                                                                  
 ```
 
-以上で完了。Managed Instanceとして認識されていることが確認できる。
+以上でSystems Managerへの登録は完了。Managed Instanceとして認識されていることが確認できる。
