@@ -1,0 +1,61 @@
+
+name: Test IAM Role 02 - Missing Boundary
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.4.0
+
+      - name: Mask AWS Account ID
+        env:
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+        run: echo "::add-mask::$AWS_ACCOUNT_ID"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/github-actions-iam-manager
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3.1.2
+
+      - name: Terraform init
+        id: init
+        run: terraform init -input=false
+
+      - name: Test role creation
+        run: |
+          if terraform apply -auto-approve -input=false \
+            -var="role_name=iac-test-role" \
+            -var="attach_boundary=false" > apply.log 2>&1; then
+            cat apply.log
+            echo "FAIL: Role creation succeeded"
+            exit 1
+          fi
+
+          cat apply.log
+          grep -q "CreateRole" apply.log
+          grep -Eq "AccessDenied|not authorized" apply.log
+
+      - name: Cleanup
+        if: ${{ always() && steps.init.outcome == 'success' }}
+        run: |
+          terraform destroy -auto-approve -input=false \
+            -var="role_name=iac-test-role" \
+            -var="attach_boundary=false"
+
