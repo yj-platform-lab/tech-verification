@@ -1,84 +1,47 @@
-# なぜ EC2 には VMware のようなリモートコンソールが見当たらないのか
+# EC2接続方式検証
 
-## Background
+## 検証の背景
 
-VMware環境では、リモートコンソールを用いてOSの起動状況確認や障害対応を行うことがあるが、同じ感覚でEC2にも「画面に直接つながる接続」があるのか疑問に思った。
+VMware環境では、VMware Toolsやリモートコンソールなど、仮想マシンを操作・管理するための仕組みを利用してきた。一方、EC2ではどのような仕組みで接続し、それぞれにどのような前提条件があるのか改めて整理しておきたいと考えた。
 
-調査した結果、EC2の接続方式は通常運用向け（SSH / Session Manager）と障害対応向け（シリアルコンソール） に明確に分かれており、VMware とは思想が異なることが分かった。本記事では、この違いを整理しどれを選ぶべきかを明確にする。
+そこで、SSH、EC2 Instance Connect、Session Manager、EC2シリアルコンソールの4つの接続方式を実際に試し、接続の仕組みと必要な設定を確認した。本記事では、その結果をもとに、通常のログインと障害対応で利用する接続方法を整理する。
 
-
-## Key Takeaways
-- EC2 には用途の異なる複数の接続方式がある
-- 通常運用はSSH / Session Manager、障害対応はシリアルコンソールを使用する
-- VMwareの「リモートコンソール」に相当するのはEC2シリアルコンソールである
-- SessionManagerはインバウンド開放を不要にできる一方、アウトバウンド通信要件に依存するためネットワーク設計上の考慮が必要
-
-![image1.png](./images/image1.png)
 
 
 ## 接続方法1: SSHでのログイン
 
-一般的な SSH ログイン。最も基本だが鍵管理と 22/tcp の開放が必要になる。
+一般的なSSHによる接続。インスタンスへのネットワーク到達性と、セキュリティグループなどでSSH通信（通常はTCP 22番）を許可する設定が必要になる。今回は秘密鍵を指定して接続する。
 
 ```bash
 ssh -i <秘密鍵> ec2-user@<IPアドレス>
 ```
 
+
 ## 接続方法2: EC2 Instance Connect（鍵レス SSH）
 
-SSH(22/tcp)を使う点は同じだが、ローカルに鍵ファイルを置かずに接続できる方式。仕組みとしては「SSH公開鍵をInstance Connect APIを通じてEC2に送信し、インスタンス側で当該公開鍵を一時的に有効化することでユーザ認証を行う」というもの。そのため、サーバにはEC2 Instance Connectパッケージが入っていることなどといった条件はあるが、鍵管理の手間を減らしたい場合には有効な接続方法である。  
-では実際にログインしてみよう。
+
+SSH（TCP 22番）を使う点は通常のSSH接続と同じだが、ブラウザから接続する場合は、ローカルに秘密鍵ファイルを用意する必要がない。
+
+接続時には、EC2 Instance Connect APIを通じて一時的なSSH公開鍵を登録し、その鍵を使ってユーザー認証を行う。利用には、インスタンスにEC2 Instance Connectに対応するソフトウェアが導入されていることなどの前提条件があるが、秘密鍵ファイルの管理の手間を減らせる。
 
 ![image2.png](./images/image2.png)
 
-接続すると以下のような画面となる
+<BR>
 
+接続すると以下のような画面となる  
 ![image3.png](./images/image3.png)
 
 ## 接続方法3:セッションマネジャー（SSH不要）
 
-SSM経由で接続する方式。SSHではないため、22/tcpを開けなくてもログインできる。
+AWS Systems ManagerのSession Managerを使って接続する方式。SSHを使用しないため、インスタンスへのインバウンド通信（TCP 22番）の許可は不要で、接続権限はIAMで制御できる。  
+ただし、インスタンスからSSMへのアウトバウンド通信（HTTPS／TCP 443番）は必要となる。SSMに接続できるよう、インターネット経由またはVPCエンドポイント経由の通信経路を用意する。  
+今回は、セキュリティグループのインバウンドルールをすべて削除し、アウトバウンド通信を許可した状態で接続できることを確認した。
 
-- インバウンド（22番）不要
-- IAM でアクセス制御しやすい
 
-では実際に試してみよう。インバウンドのルールを削除して下記のような状態となっている。ポイントは**インバウンド（22番）は不要だが、アウトバンドへの通信は許可されている**こと。
-
-```bash
-# SGを確認
-aws ec2 describe-instances \
-  --instance-ids i-xxxxxxxxxxxxxxxxx \
-  --query 'Reservations[0].Instances[0].SecurityGroups' \
-  --output table
-
-# 実行結果（Inboundが存在しないことがわかる。ただしアウトバンドはSSMと通信するために必要。）
-{                                              
-    "GroupId": "sg-XXXXXXXXXXXXXXXXX",         
-    "GroupName": "ssm-ready-dev-ssh-sg",       
-    "VpcId": "vpc-XXXXXXXXXXXXXXXXX",          
-    "Inbound": [],                             
-    "Outbound": [                              
-        {                                      
-            "IpProtocol": "-1",                
-            "IpRanges": [                      
-                {                              
-                    "CidrIp": "0.0.0.0/0"      
-                }                              
-            ],                                 
-            "Ipv6Ranges": [],                  
-            "PrefixListIds": [],               
-            "UserIdGroupPairs": []             
-        }                                      
-    ]                                          
-}                                              
-```
-
-以下で接続する。
-
+以下で接続する。  
 ![image4.png](./images/image4.png)
 
-接続すると以下のような画面となる。接続ユーザはssm-user。
-
+接続すると以下のような画面となる。接続ユーザはssm-user。  
 ![image5.png](./images/image5.png)
 
 ## 接続方法4:**EC2 シリアルコンソール**
@@ -106,26 +69,17 @@ aws ec2 disable-serial-console-access --region ap-northeast-1
 
 ```
 
-では実際にログインしてみよう
+<br>
 
+ログイン画面は以下となる  
 ![image6.png](./images/image6.png)
 
-接続後Enterキーを入力するとプロンプトが現れる。
-
+接続後Enterキーを入力するとプロンプトが現れる。  
 ![image7.png](./images/image7.png)
 
 ## まとめ
 
-- **Session Managerはアウトバウンド通信が必須**
-    → Inbound 不要だが完全遮断では使えない
-    
-- **EC2 Instance ConnectはSSH前提**
-    → 鍵レスだが 22/tcp は必要
-    
-- **シリアルコンソールは事前有効化が必須**
-    → 障害発生後では間に合わない
-    
-- **シリアルコンソールはIAM権限が厳しい**
-    → AdministratorAccess 以外では明示的な許可が必要
-
-以上で検証を終了とする。
+- **SSH**：秘密鍵を使って接続する基本的な方法。
+- **EC2 Instance Connect**：SSH接続時の鍵管理の手間を減らせる。
+- **Session Manager**：22番ポートの許可は不要だが、SSMへのアウトバウンド通信は必要。
+- **EC2シリアルコンソール**：起動やネットワークの問題を調査するための接続手段。事前に設定と接続確認をしておく。
